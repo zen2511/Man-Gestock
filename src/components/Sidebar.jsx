@@ -1,5 +1,4 @@
-import { LOGO_BASE64 } from '../utils/logoData'
-
+import { LOGO_BASE64 } from "../utils/logoData";
 const menuItems = [
   { id: 'dashboard',    label: 'Dashboard',    icon: '📊' },
   { id: 'produits',     label: 'Produits',     icon: '📦' },
