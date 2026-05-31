@@ -1,37 +1,29 @@
 import { useState } from 'react'
 import { genId } from '../utils/storage'
 
-const CHAMPS_VIDES = { nom: '', telephone: '', email: '', adresse: '', produits: '' }
+const CHAMPS_VIDES = { nom: '', telephone: '', email: '', adresse: '', categorieIds: [] }
 
 const B = {
   900: '#0a1929', 700: '#0f2847', 600: '#1565c0',
-  400: '#2196f3', 300: '#64b5f6', 200: '#bbdefb',
-  100: '#e3f2fd', 50: '#f0f7ff',
+  400: '#2196f3', 200: '#bbdefb', 100: '#e3f2fd', 50: '#f0f7ff',
 }
 
 const sInput = {
   width: '100%', padding: '9px 12px', borderRadius: 6,
   border: `1.5px solid ${B[200]}`, fontSize: 13, marginBottom: 12,
   boxSizing: 'border-box', outline: 'none', color: B[900], background: B[50],
-  transition: 'border-color 0.15s',
 }
 const sLabel = { fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }
 const btnP = { padding: '8px 18px', borderRadius: 6, border: 'none', background: B[600], color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }
 const btnS = { padding: '8px 18px', borderRadius: 6, border: `1.5px solid ${B[200]}`, background: '#fff', fontSize: 13, cursor: 'pointer', color: '#64748b' }
 
-// Couleurs avatar par initiale
 const AVATAR_COLORS = [
-  { bg: '#dbeafe', color: '#1d4ed8' },
-  { bg: '#dcfce7', color: '#15803d' },
-  { bg: '#fef3c7', color: '#b45309' },
-  { bg: '#fce7f3', color: '#be185d' },
-  { bg: '#ede9fe', color: '#7c3aed' },
-  { bg: '#ffedd5', color: '#c2410c' },
+  { bg: '#dbeafe', color: '#1d4ed8' }, { bg: '#dcfce7', color: '#15803d' },
+  { bg: '#fef3c7', color: '#b45309' }, { bg: '#fce7f3', color: '#be185d' },
+  { bg: '#ede9fe', color: '#7c3aed' }, { bg: '#ffedd5', color: '#c2410c' },
 ]
-
 function avatarColor(nom) {
-  const idx = (nom?.charCodeAt(0) || 0) % AVATAR_COLORS.length
-  return AVATAR_COLORS[idx]
+  return AVATAR_COLORS[(nom?.charCodeAt(0) || 0) % AVATAR_COLORS.length]
 }
 
 function InfoLigne({ icone, valeur }) {
@@ -44,19 +36,24 @@ function InfoLigne({ icone, valeur }) {
   )
 }
 
-function TagProduit({ label }) {
+function TagCategorie({ cat }) {
   return (
     <span style={{
-      display: 'inline-block', padding: '3px 9px', borderRadius: 20,
-      background: B[100], color: B[600], fontSize: 11, fontWeight: 600,
-      border: `1px solid ${B[200]}`, margin: '2px 3px 2px 0',
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 9px', borderRadius: 20,
+      background: (cat.couleur || B[600]) + '18',
+      color: cat.couleur || B[600],
+      fontSize: 11, fontWeight: 600,
+      border: `1px solid ${(cat.couleur || B[600]) + '40'}`,
+      margin: '2px 3px 2px 0',
     }}>
-      {label.trim()}
+      {cat.icone && <span>{cat.icone}</span>}
+      {cat.nom}
     </span>
   )
 }
 
-function Fournisseurs({ fournisseurs }) {
+function Fournisseurs({ fournisseurs, categories = [], droits }) {
   const { donnees, ajouter, modifier, effacer } = fournisseurs
 
   const [recherche,        setRecherche]        = useState('')
@@ -68,21 +65,29 @@ function Fournisseurs({ fournisseurs }) {
 
   const liste = donnees.filter(f =>
     f.nom.toLowerCase().includes(recherche.toLowerCase()) ||
-    (f.telephone || '').includes(recherche) ||
-    (f.produits  || '').toLowerCase().includes(recherche.toLowerCase())
+    (f.telephone || '').includes(recherche)
   )
 
   const ouvrirAjout = () => {
     setFournisseurEdite(null)
-    setForm(CHAMPS_VIDES)
+    setForm({ ...CHAMPS_VIDES, categorieIds: [] })
     setModal(true)
   }
 
   const ouvrirEdition = (f, e) => {
     e?.stopPropagation()
     setFournisseurEdite(f)
-    setForm({ ...CHAMPS_VIDES, ...f })
+    setForm({ ...CHAMPS_VIDES, ...f, categorieIds: f.categorieIds || [] })
     setModal(true)
+  }
+
+  const toggleCategorie = (id) => {
+    setForm(prev => ({
+      ...prev,
+      categorieIds: prev.categorieIds.includes(id)
+        ? prev.categorieIds.filter(c => c !== id)
+        : [...prev.categorieIds, id]
+    }))
   }
 
   const sauvegarder = () => {
@@ -104,6 +109,10 @@ function Fournisseurs({ fournisseurs }) {
     setConfirmation(null)
   }
 
+  // Récupère les objets catégorie d'un fournisseur
+  const getCategoriesFournisseur = (f) =>
+    (f.categorieIds || []).map(id => categories.find(c => c.id === id)).filter(Boolean)
+
   return (
     <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
 
@@ -113,21 +122,21 @@ function Fournisseurs({ fournisseurs }) {
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: B[900], margin: 0 }}>
-              Fournisseurs
-            </h2>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: B[900], margin: 0 }}>Fournisseurs</h2>
             <p style={{ fontSize: 12, color: '#94a3b8', margin: '3px 0 0' }}>
               {donnees.length} fournisseur{donnees.length !== 1 ? 's' : ''} enregistré{donnees.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button onClick={ouvrirAjout} style={{ ...btnP, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 16, lineHeight: 1 }}>＋</span> Nouveau
-          </button>
+          {droits?.modifierFournisseurs !== false && (
+            <button onClick={ouvrirAjout} style={{ ...btnP, display: 'flex', alignItems: 'center', gap: 6 }}>
+              ＋ Nouveau
+            </button>
+          )}
         </div>
 
         {/* Recherche */}
         <input
-          placeholder="🔍  Rechercher par nom, téléphone, produit..."
+          placeholder="🔍  Rechercher par nom ou téléphone..."
           value={recherche}
           onChange={e => setRecherche(e.target.value)}
           style={{ ...sInput, marginBottom: 18, maxWidth: 380 }}
@@ -142,11 +151,11 @@ function Fournisseurs({ fournisseurs }) {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
             {liste.map(f => {
-              const actif   = detail?.id === f.id
-              const av      = avatarColor(f.nom)
-              const prodList = f.produits ? f.produits.split(',').slice(0, 3) : []
+              const actif = detail?.id === f.id
+              const av    = avatarColor(f.nom)
+              const cats  = getCategoriesFournisseur(f)
 
               return (
                 <div
@@ -155,9 +164,7 @@ function Fournisseurs({ fournisseurs }) {
                   style={{
                     background: '#fff',
                     border: actif ? `2px solid ${B[400]}` : `1.5px solid ${B[200]}`,
-                    borderRadius: 10,
-                    padding: '16px',
-                    cursor: 'pointer',
+                    borderRadius: 10, padding: '16px', cursor: 'pointer',
                     transition: 'box-shadow 0.15s, border-color 0.15s',
                     boxShadow: actif ? `0 0 0 3px ${B[100]}` : '0 1px 4px rgba(0,0,0,0.06)',
                   }}
@@ -178,19 +185,15 @@ function Fournisseurs({ fournisseurs }) {
                       <div style={{ fontWeight: 700, fontSize: 14, color: B[900], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {f.nom}
                       </div>
-                      {f.telephone && (
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>📞 {f.telephone}</div>
-                      )}
+                      {f.telephone && <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>📞 {f.telephone}</div>}
                     </div>
                   </div>
 
-                  {/* Produits livrés en tags */}
-                  {prodList.length > 0 && (
+                  {/* Catégories */}
+                  {cats.length > 0 && (
                     <div style={{ marginBottom: 10 }}>
-                      {prodList.map((p, i) => <TagProduit key={i} label={p} />)}
-                      {f.produits.split(',').length > 3 && (
-                        <span style={{ fontSize: 10, color: '#94a3b8' }}>+{f.produits.split(',').length - 3}</span>
-                      )}
+                      {cats.slice(0, 3).map(c => <TagCategorie key={c.id} cat={c} />)}
+                      {cats.length > 3 && <span style={{ fontSize: 10, color: '#94a3b8' }}>+{cats.length - 3}</span>}
                     </div>
                   )}
 
@@ -203,16 +206,20 @@ function Fournisseurs({ fournisseurs }) {
                   )}
 
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                    <button onClick={e => ouvrirEdition(f, e)}
-                      style={{ ...btnS, flex: 1, fontSize: 11, padding: '5px 0', borderRadius: 5 }}>
-                      ✏️ Modifier
-                    </button>
-                    <button onClick={e => demanderSuppression(f, e)}
-                      style={{ ...btnS, flex: 1, fontSize: 11, padding: '5px 0', borderRadius: 5, color: '#ef4444', borderColor: '#fecaca' }}>
-                      🗑️ Retirer
-                    </button>
-                  </div>
+                  {droits?.modifierFournisseurs !== false && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                      <button onClick={e => ouvrirEdition(f, e)}
+                        style={{ ...btnS, flex: 1, fontSize: 11, padding: '5px 0', borderRadius: 5 }}>
+                        ✏️ Modifier
+                      </button>
+                      {droits?.supprimerDonnees !== false && (
+                        <button onClick={e => demanderSuppression(f, e)}
+                          style={{ ...btnS, flex: 1, fontSize: 11, padding: '5px 0', borderRadius: 5, color: '#ef4444', borderColor: '#fecaca' }}>
+                          🗑️ Retirer
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -229,16 +236,15 @@ function Fournisseurs({ fournisseurs }) {
           position: 'sticky', top: 16,
           boxShadow: '0 4px 20px rgba(21,101,192,0.08)',
         }}>
-          {/* Bandeau haut */}
-          <div style={{ background: `linear-gradient(135deg, ${B[700]}, ${B[600]})`, padding: '20px 16px 28px', position: 'relative' }}>
+          <div style={{ background: `linear-gradient(135deg, ${B[700]}, ${B[600]})`, padding: '20px 16px 24px', position: 'relative' }}>
             <button onClick={() => setDetail(null)} style={{
               position: 'absolute', top: 10, right: 10,
               background: 'rgba(255,255,255,0.2)', border: 'none',
               color: '#fff', borderRadius: 5, width: 26, height: 26,
-              cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', fontSize: 14,
             }}>×</button>
             <div style={{
-              width: 56, height: 56, borderRadius: 12,
+              width: 52, height: 52, borderRadius: 12,
               background: 'rgba(255,255,255,0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 800, fontSize: 22, color: '#fff', margin: '0 auto 10px',
@@ -251,20 +257,19 @@ function Fournisseurs({ fournisseurs }) {
             </div>
           </div>
 
-          {/* Infos */}
           <div style={{ padding: '16px' }}>
             <InfoLigne icone="📞" valeur={detail.telephone} />
             <InfoLigne icone="✉️" valeur={detail.email} />
             <InfoLigne icone="📍" valeur={detail.adresse} />
 
-            {/* Produits livrés */}
-            {detail.produits && (
+            {/* Catégories liées */}
+            {getCategoriesFournisseur(detail).length > 0 && (
               <div style={{ padding: '10px 0', borderBottom: `1px solid ${B[50]}` }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-                  Produits livrés
+                  Catégories livrées
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                  {detail.produits.split(',').map((p, i) => <TagProduit key={i} label={p} />)}
+                  {getCategoriesFournisseur(detail).map(c => <TagCategorie key={c.id} cat={c} />)}
                 </div>
               </div>
             )}
@@ -275,15 +280,17 @@ function Fournisseurs({ fournisseurs }) {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button onClick={e => ouvrirEdition(detail, e)} style={{ ...btnP, flex: 1, fontSize: 12 }}>
-                ✏️ Modifier
-              </button>
-              <button onClick={e => demanderSuppression(detail, e)}
-                style={{ ...btnS, flex: 1, fontSize: 12, color: '#ef4444', borderColor: '#fecaca' }}>
-                🗑️ Retirer
-              </button>
-            </div>
+            {droits?.modifierFournisseurs !== false && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button onClick={e => ouvrirEdition(detail, e)} style={{ ...btnP, flex: 1, fontSize: 12 }}>✏️ Modifier</button>
+                {droits?.supprimerDonnees !== false && (
+                  <button onClick={e => demanderSuppression(detail, e)}
+                    style={{ ...btnS, flex: 1, fontSize: 12, color: '#ef4444', borderColor: '#fecaca' }}>
+                    🗑️ Retirer
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -291,7 +298,7 @@ function Fournisseurs({ fournisseurs }) {
       {/* ── Modal ajout/édition ── */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '26px 28px', width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '26px 28px', width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: B[900], marginBottom: 20, marginTop: 0 }}>
               {fournisseurEdite ? '✏️ Modifier le fournisseur' : '＋ Nouveau fournisseur'}
             </h3>
@@ -300,11 +307,6 @@ function Fournisseurs({ fournisseurs }) {
             <input style={sInput} value={form.nom}
               onChange={e => setForm({ ...form, nom: e.target.value })}
               placeholder="Nom société ou personne" />
-
-            <label style={sLabel}>Produits livrés</label>
-            <input style={sInput} value={form.produits}
-              onChange={e => setForm({ ...form, produits: e.target.value })}
-              placeholder="Aluminium, verre, quincaillerie... (séparés par virgule)" />
 
             <label style={sLabel}>Adresse</label>
             <input style={sInput} value={form.adresse}
@@ -317,9 +319,48 @@ function Fournisseurs({ fournisseurs }) {
               placeholder="699 123 456" />
 
             <label style={sLabel}>Email</label>
-            <input style={{ ...sInput, marginBottom: 20 }} value={form.email}
+            <input style={sInput} value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
               placeholder="email@exemple.com" />
+
+            {/* Sélection des catégories */}
+            <label style={{ ...sLabel, marginBottom: 8 }}>Catégories livrées</label>
+            {categories.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12, padding: '10px', background: B[50], borderRadius: 6 }}>
+                Aucune catégorie disponible. Créez d'abord des catégories.
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: 8,
+                marginBottom: 20, padding: '12px',
+                background: B[50], borderRadius: 8,
+                border: `1.5px solid ${B[200]}`,
+              }}>
+                {categories.map(cat => {
+                  const selectionne = form.categorieIds.includes(cat.id)
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleCategorie(cat.id)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                        cursor: 'pointer', transition: 'all 0.15s',
+                        background: selectionne ? (cat.couleur || B[600]) : '#fff',
+                        color: selectionne ? '#fff' : (cat.couleur || B[600]),
+                        border: `1.5px solid ${cat.couleur || B[600]}`,
+                        boxShadow: selectionne ? '0 2px 6px rgba(0,0,0,0.15)' : 'none',
+                      }}
+                    >
+                      {cat.icone && <span>{cat.icone}</span>}
+                      {cat.nom}
+                      {selectionne && <span style={{ fontSize: 10 }}>✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(false)} style={btnS}>Annuler</button>
@@ -344,8 +385,7 @@ function Fournisseurs({ fournisseurs }) {
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 6 }}>
               <button onClick={() => setConfirmation(null)} style={btnS}>Annuler</button>
-              <button onClick={supprimer}
-                style={{ ...btnP, background: '#ef4444' }}>
+              <button onClick={supprimer} style={{ ...btnP, background: '#ef4444' }}>
                 Confirmer la suppression
               </button>
             </div>
