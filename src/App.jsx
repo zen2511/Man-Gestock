@@ -16,14 +16,25 @@ import { getSession, logout, DROITS, VISITEUR_ANONYME } from './utils/auth'
 
 // ── Réinitialisation unique au déploiement ───────────────────
 // Changer la valeur 'v1' pour forcer un nouveau nettoyage
-const VERSION = 'v1'
+const VERSION   = 'v1'
 const CLE_VERSION = 'mansa_version'
-if (localStorage.getItem(CLE_VERSION) !== VERSION) {
-  Object.values(CLES).forEach(cle => localStorage.removeItem(cle))
-  localStorage.setItem(CLE_VERSION, VERSION)
+
+// Déplacé dans une fonction pour éviter tout crash au niveau module
+function reinitialiserSiNouvelleVersion() {
+  try {
+    if (localStorage.getItem(CLE_VERSION) !== VERSION) {
+      Object.values(CLES).forEach(cle => localStorage.removeItem(cle))
+      localStorage.setItem(CLE_VERSION, VERSION)
+    }
+  } catch (e) {
+    console.warn('Impossible de vérifier la version localStorage', e)
+  }
 }
 
 function App() {
+  // Exécuté à l'intérieur du composant, React est déjà monté
+  reinitialiserSiNouvelleVersion()
+
   const [pageActive, setPageActive]   = useState('dashboard')
   const [userActif, setUserActif]     = useState(() => getSession() ?? VISITEUR_ANONYME)
   const [modalLoginVisible, setModalLoginVisible] = useState(false)
@@ -36,7 +47,8 @@ function App() {
   const mouvements   = useStore(CLES.mouvements,   [])
   const categories   = useStore(CLES.categories,   CATEGORIES_DEFAUT)
 
-  const alertes = produits.donnees.filter(p => p.quantite <= (p.quantiteMin || 5)).length
+  // Correction : stock (pas quantite) correspond au champ réel des produits
+  const alertes = produits.donnees.filter(p => (p.stock || 0) <= (p.stockMin || 5)).length
   const droits  = DROITS[userActif.role]?.peut ?? DROITS.visiteur.peut
 
   const handleConnecte = (user) => { setUserActif(user); setModalLoginVisible(false) }
@@ -60,7 +72,7 @@ function App() {
       case 'fournisseurs': return <Fournisseurs fournisseurs={fournisseurs} droits={droits} />
       case 'commandes':    return <Chantiers commandes={commandes} produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} droits={droits} />
       case 'parametres':   return <Parametres userActif={userActif} />
-      default:             return <Dashboard produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} commandes={commandes.donnees} mouvements={mouvements.donnees} categories={categories.donnees} />
+      default:             return <Dashboard produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} commandes={commandes.donnees} mouvements={mouvements.donnees} categories={categories.donnees} setPageActive={setPageActive} />
     }
   }
 

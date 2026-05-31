@@ -37,7 +37,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
   }
   const sBtn = {
     padding: '9px 20px', borderRadius: 8, border: 'none',
-    background: 'linear-gradient(135deg, #c0392b, #e74c3c)',
+    background: 'linear-gradient(135deg, #254e88, #254e88)',
     color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
   }
   const sBtnSec = {

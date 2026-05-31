@@ -1,47 +1,48 @@
-import { LOGO_BASE64 } from "../utils/logoData";
+import { LOGO_BASE64 } from '../utils/logoData'
+
 const menuItems = [
-  { id: 'dashboard',    label: 'Dashboard',    icon: '📊' },
-  { id: 'produits',     label: 'Produits',     icon: '📦' },
-  { id: 'categories',   label: 'Catégories',   icon: '🗂️' },
-  { id: 'clients',      label: 'Clients',      icon: '👥' },
-  { id: 'fournisseurs', label: 'Fournisseurs', icon: '🚚' },
-  { id: 'commandes',    label: 'Chantiers',    icon: '🏗️' },
+  { id: 'dashboard',    label: 'Dashboard'    },
+  { id: 'produits',     label: 'Produits'     },
+  { id: 'categories',   label: 'Catégories'   },
+  { id: 'clients',      label: 'Clients'      },
+  { id: 'fournisseurs', label: 'Fournisseurs' },
+  { id: 'commandes',    label: 'Chantiers'    },
 ]
 
 function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed }) {
-  const w = collapsed ? 68 : 220
+  const w = collapsed ? 56 : 210
 
   return (
     <div style={{
       width: w,
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #0a1e3d 0%, #0f2847 60%, #0d2340 100%)',
+      background: '#0a1929',
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
-      boxShadow: '4px 0 20px rgba(0,0,0,0.25)',
-      transition: 'width 0.25s cubic-bezier(.4,0,.2,1)',
+      borderRight: '1px solid #1a2f4a',
+      transition: 'width 0.22s cubic-bezier(.4,0,.2,1)',
       overflow: 'hidden',
     }}>
 
-      {/* Logo + bouton toggle */}
+      {/* Logo + toggle */}
       <div style={{
-        padding: collapsed ? '18px 14px' : '18px 16px 16px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        padding: collapsed ? '16px 12px' : '16px 14px',
+        borderBottom: '1px solid #1a2f4a',
         display: 'flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'space-between',
+        minHeight: 64,
         gap: 8,
-        minHeight: 76,
       }}>
         {!collapsed && (
           <div style={{ flex: 1, minWidth: 0 }}>
             <img
               src={LOGO_BASE64}
               alt="MAN-SA"
-              style={{ height: 36, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+              style={{ height: 32, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
             />
-            <div style={{ fontSize: 10, color: '#5a8ab5', marginTop: 5, letterSpacing: '0.3px', fontWeight: 600 }}>
+            <div style={{ fontSize: 9, color: '#3d6a99', marginTop: 4, letterSpacing: '0.4px', fontWeight: 700, textTransform: 'uppercase' }}>
               Man-Gestock
             </div>
           </div>
@@ -50,31 +51,37 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed })
           <img
             src={LOGO_BASE64}
             alt="MAN"
-            style={{ height: 30, width: 42, objectFit: 'cover', objectPosition: 'left center', borderRadius: 4 }}
+            style={{ height: 26, width: 36, objectFit: 'cover', objectPosition: 'left center', borderRadius: 3 }}
           />
         )}
         <button
           onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? 'Agrandir' : 'Réduire'}
           style={{
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 7, width: 28, height: 28,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#7aa3cc', fontSize: 13, flexShrink: 0,
-            transition: 'background 0.15s',
+            background: 'transparent',
+            border: '1px solid #1e3a5a',
+            borderRadius: 5,
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: '#4a7fa5',
+            fontSize: 10,
+            flexShrink: 0,
+            transition: 'border-color 0.15s, color 0.15s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#2d6aa0'; e.currentTarget.style.color = '#7ab0d4' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e3a5a'; e.currentTarget.style.color = '#4a7fa5' }}
         >
           {collapsed ? '▶' : '◀'}
         </button>
       </div>
 
       {/* Menu */}
-      <nav style={{ padding: collapsed ? '12px 8px' : '12px 10px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+      <nav style={{ padding: collapsed ? '10px 6px' : '10px 8px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {!collapsed && (
-          <div style={{ fontSize: 10, color: '#3d6a99', fontWeight: 700, letterSpacing: '0.8px', padding: '6px 14px 8px', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 9, color: '#2a4a6a', fontWeight: 700, letterSpacing: '0.8px', padding: '4px 10px 8px', textTransform: 'uppercase' }}>
             Navigation
           </div>
         )}
@@ -86,25 +93,48 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed })
               onClick={() => setPageActive(item.id)}
               title={collapsed ? item.label : ''}
               style={{
-                display: 'flex', alignItems: 'center',
-                gap: collapsed ? 0 : 10,
-                padding: collapsed ? '11px 0' : '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0,
+                padding: collapsed ? '9px 0' : '8px 10px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                borderRadius: 9, marginBottom: 2, cursor: 'pointer',
-                background: actif ? 'linear-gradient(135deg, #c0392b, #e74c3c)' : 'transparent',
-                color: actif ? '#ffffff' : '#93b8d8',
-                fontWeight: actif ? 700 : 400, fontSize: 14,
-                transition: 'all 0.15s',
-                boxShadow: actif ? '0 3px 12px rgba(192,57,43,0.35)' : 'none',
-                whiteSpace: 'nowrap', overflow: 'hidden',
+                borderRadius: 6,
+                marginBottom: 2,
+                cursor: 'pointer',
+                background: actif ? '#1565c0' : 'transparent',
+                color: actif ? '#e3f2fd' : '#5a8ab5',
+                fontWeight: actif ? 600 : 400,
+                fontSize: 13,
+                letterSpacing: '0.01em',
+                transition: 'all 0.12s',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
               }}
-              onMouseEnter={e => { if (!actif) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+              onMouseEnter={e => { if (!actif) e.currentTarget.style.background = '#0d2137' }}
               onMouseLeave={e => { if (!actif) e.currentTarget.style.background = 'transparent' }}
             >
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
-              {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
-              {!collapsed && actif && (
-                <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.6)' }} />
+              {!collapsed && (
+                <span style={{
+                  display: 'inline-block',
+                  width: 3,
+                  height: 14,
+                  borderRadius: 2,
+                  background: actif ? '#64b5f6' : 'transparent',
+                  marginRight: 10,
+                  flexShrink: 0,
+                  transition: 'background 0.12s',
+                }} />
+              )}
+              {collapsed ? (
+                <span style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: actif ? '#64b5f6' : '#2a4a6a',
+                  display: 'inline-block',
+                }} />
+              ) : (
+                <span style={{ flex: 1 }}>{item.label}</span>
               )}
             </div>
           )
@@ -112,34 +142,47 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed })
       </nav>
 
       {/* Paramètres en bas */}
-      <div style={{ padding: collapsed ? '10px 8px 20px' : '10px 10px 20px' }}>
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
-          <div
-            onClick={() => setPageActive('parametres')}
-            title={collapsed ? 'Paramètres' : ''}
-            style={{
-              display: 'flex', alignItems: 'center',
-              gap: collapsed ? 0 : 10,
-              padding: collapsed ? '11px 0' : '10px 14px',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              borderRadius: 9, cursor: 'pointer',
-              background: pageActive === 'parametres' ? 'linear-gradient(135deg, #c0392b, #e74c3c)' : 'transparent',
-              color: pageActive === 'parametres' ? '#ffffff' : '#93b8d8',
-              fontWeight: pageActive === 'parametres' ? 700 : 400,
-              fontSize: 14, transition: 'all 0.15s',
-              boxShadow: pageActive === 'parametres' ? '0 3px 12px rgba(192,57,43,0.35)' : 'none',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={e => { if (pageActive !== 'parametres') e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-            onMouseLeave={e => { if (pageActive !== 'parametres') e.currentTarget.style.background = 'transparent' }}
-          >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>⚙️</span>
-            {!collapsed && <span>Paramètres</span>}
-          </div>
+      <div style={{ padding: collapsed ? '8px 6px 18px' : '8px 8px 18px', borderTop: '1px solid #1a2f4a' }}>
+        <div
+          onClick={() => setPageActive('parametres')}
+          title={collapsed ? 'Paramètres' : ''}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: collapsed ? '9px 0' : '8px 10px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            borderRadius: 6,
+            cursor: 'pointer',
+            background: pageActive === 'parametres' ? '#1565c0' : 'transparent',
+            color: pageActive === 'parametres' ? '#e3f2fd' : '#5a8ab5',
+            fontWeight: pageActive === 'parametres' ? 600 : 400,
+            fontSize: 13,
+            transition: 'all 0.12s',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={e => { if (pageActive !== 'parametres') e.currentTarget.style.background = '#0d2137' }}
+          onMouseLeave={e => { if (pageActive !== 'parametres') e.currentTarget.style.background = 'transparent' }}
+        >
+          {!collapsed && (
+            <span style={{
+              display: 'inline-block',
+              width: 3,
+              height: 14,
+              borderRadius: 2,
+              background: pageActive === 'parametres' ? '#64b5f6' : 'transparent',
+              marginRight: 10,
+              flexShrink: 0,
+            }} />
+          )}
+          {collapsed ? (
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: pageActive === 'parametres' ? '#64b5f6' : '#2a4a6a', display: 'inline-block' }} />
+          ) : (
+            <span>Paramètres</span>
+          )}
         </div>
         {!collapsed && (
-          <div style={{ textAlign: 'center', marginTop: 12, fontSize: 10, color: '#2d5580' }}>
-            v2.0 · Man-Gestock © 2024
+          <div style={{ textAlign: 'center', marginTop: 10, fontSize: 9, color: '#1e3a5a', letterSpacing: '0.3px' }}>
+            v2.0 · Man-Gestock
           </div>
         )}
       </div>
