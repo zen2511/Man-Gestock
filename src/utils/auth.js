@@ -1,5 +1,5 @@
 // ── Clés localStorage ────────────────────────────────────────
-const CLE_USERS   = 'gstock_users'
+const CLE_USERS = 'gstock_users_v2'
 const CLE_SESSION = 'gstock_session'
 
 // ── Visiteur anonyme (pas de session) ───────────────────────
