@@ -31,8 +31,11 @@ const sInput = {
 const sBtn    = { padding: '7px 16px', borderRadius: 5, border: 'none', background: B[600], color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }
 const sBtnSec = { padding: '7px 16px', borderRadius: 5, border: `1px solid ${B[200]}`, background: '#fff', fontSize: 13, cursor: 'pointer', color: '#64748b' }
 
-function Commandes({ commandes, produits = [], clients = [], droits }) {
+function Commandes({ commandes, produits: produitsStore = {}, mouvements, clients = [], droits }) {
   const { donnees, ajouter, modifier, effacer } = commandes
+  // Store produits complet pour pouvoir modifier le stock
+  const produits     = produitsStore.donnees  || []
+  const modifProduit = produitsStore.modifier  || (() => {})
 
   const [recherche,    setRecherche]    = useState('')
   const [filtreStatut, setFiltreStatut] = useState('tous')
@@ -41,6 +44,8 @@ function Commandes({ commandes, produits = [], clients = [], droits }) {
   const [form,         setForm]         = useState(COMMANDE_VIDE)
   const [detail,       setDetail]       = useState(null)
   const [confirmation, setConfirmation] = useState(null)
+  const [rechercheP,   setRechercheP]   = useState('')
+  const [filtreCatP,   setFiltreCatP]   = useState('')
 
   const liste = donnees.filter(c => {
     const matchR = (c.reference || '').toLowerCase().includes(recherche.toLowerCase()) ||
@@ -71,7 +76,13 @@ function Commandes({ commandes, produits = [], clients = [], droits }) {
       lignes[idx] = { ...lignes[idx], [champ]: valeur }
       if (champ === 'produitId') {
         const prod = produits.find(p => p.id === valeur)
-        if (prod) { lignes[idx].produitNom = prod.nom; lignes[idx].prixUnit = prod.prix || 0; lignes[idx].total = lignes[idx].quantite * (prod.prix || 0) }
+        if (prod) {
+          lignes[idx].produitNom = prod.designation || prod.nom || ''
+          lignes[idx].produitRef = prod.reference || ''
+          lignes[idx].stockDispo = prod.stock ?? 0
+          // prixUnit reste ce que l'utilisateur a saisi (pas de prix dans les produits)
+          lignes[idx].total = lignes[idx].quantite * (lignes[idx].prixUnit || 0)
+        }
       }
       if (champ === 'quantite' || champ === 'prixUnit') {
         lignes[idx].total = Number(lignes[idx].quantite) * Number(lignes[idx].prixUnit)
@@ -84,16 +95,93 @@ function Commandes({ commandes, produits = [], clients = [], droits }) {
 
   const montantTotal = (lignes) => (lignes || []).reduce((s, l) => s + (l.total || 0), 0)
 
+  // Catégories uniques présentes dans les produits (pour filtre)
+  const categoriesProduits = [...new Set(produits.map(p => p.categorie).filter(Boolean))]
+
+  // Produits filtrés selon la recherche et la catégorie sélectionnée dans le modal
+  const produitsFiltres = produits.filter(p => {
+    const q = rechercheP.toLowerCase()
+    const matchQ = !q ||
+      (p.designation || p.nom || '').toLowerCase().includes(q) ||
+      (p.reference || '').toLowerCase().includes(q) ||
+      (p.ral || '').toLowerCase().includes(q) ||
+      (p.serie || '').toLowerCase().includes(q)
+    const matchCat = !filtreCatP || p.categorie === filtreCatP
+    return matchQ && matchCat
+  })
+
   const sauvegarder = () => {
     if (!form.clientId) return
     const client = clients.find(c => c.id === form.clientId)
     const cmd = { ...form, clientNom: client?.nom || '', montantHT: montantTotal(form.lignes) }
-    if (cmdEditee) { modifier(cmdEditee.id, cmd); if (detail?.id === cmdEditee.id) setDetail({ ...detail, ...cmd }) }
-    else ajouter({ ...cmd, id: genId() })
+
+    const lignesValides = (form.lignes || []).filter(l => l.produitId && l.quantite > 0)
+
+    if (cmdEditee) {
+      // ── Modification : recalculer le delta de stock ──────────
+      const lignesAvant = (cmdEditee.lignes || []).filter(l => l.produitId && l.quantite > 0)
+
+      // Rembourser l'ancienne sortie
+      lignesAvant.forEach(l => {
+        const prod = produits.find(p => p.id === l.produitId)
+        if (prod) modifProduit(prod.id, { stock: (prod.stock || 0) + l.quantite })
+      })
+      // Débiter la nouvelle sortie
+      lignesValides.forEach(l => {
+        const prod = produits.find(p => p.id === l.produitId)
+        if (prod) {
+          modifProduit(prod.id, { stock: Math.max(0, (prod.stock || 0) - l.quantite) })
+          if (mouvements?.ajouter) mouvements.ajouter({
+            id: genId(), produitId: prod.id,
+            produitNom: prod.designation || prod.nom,
+            type: 'sortie', quantite: l.quantite,
+            note: `Chantier modifié ${cmd.reference || ''} — ${client?.nom || ''}`,
+            date: new Date().toISOString(),
+          })
+        }
+      })
+
+      modifier(cmdEditee.id, cmd)
+      if (detail?.id === cmdEditee.id) setDetail({ ...detail, ...cmd })
+
+    } else {
+      // ── Création : débiter le stock de chaque produit ────────
+      lignesValides.forEach(l => {
+        const prod = produits.find(p => p.id === l.produitId)
+        if (prod) {
+          modifProduit(prod.id, { stock: Math.max(0, (prod.stock || 0) - l.quantite) })
+          if (mouvements?.ajouter) mouvements.ajouter({
+            id: genId(), produitId: prod.id,
+            produitNom: prod.designation || prod.nom,
+            type: 'sortie', quantite: l.quantite,
+            note: `Chantier ${cmd.reference || ''} — ${client?.nom || ''}`,
+            date: new Date().toISOString(),
+          })
+        }
+      })
+
+      ajouter({ ...cmd, id: genId() })
+    }
+
     setModal(false)
   }
 
   const supprimer = () => {
+    // Rembourser le stock des produits du chantier supprimé
+    const lignesARemb = (confirmation.lignes || []).filter(l => l.produitId && l.quantite > 0)
+    lignesARemb.forEach(l => {
+      const prod = produits.find(p => p.id === l.produitId)
+      if (prod) {
+        modifProduit(prod.id, { stock: (prod.stock || 0) + l.quantite })
+        if (mouvements?.ajouter) mouvements.ajouter({
+          id: genId(), produitId: prod.id,
+          produitNom: prod.designation || prod.nom,
+          type: 'entree', quantite: l.quantite,
+          note: `Annulation chantier ${confirmation.reference || ''}`,
+          date: new Date().toISOString(),
+        })
+      }
+    })
     effacer(confirmation.id)
     if (detail?.id === confirmation.id) setDetail(null)
     setConfirmation(null)
@@ -265,72 +353,226 @@ function Commandes({ commandes, produits = [], clients = [], droits }) {
       {/* Modal */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: '24px 26px', width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: B[900], marginBottom: 16, marginTop: 0 }}>
-              {cmdEditee ? 'Modifier le chantier' : 'Nouveau chantier'}
-            </h3>
+          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 620, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(10,25,41,0.18)' }}>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Référence</label>
-                <input style={sInput} value={form.reference || ''} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="CMD-2025-001" />
+            {/* En-tête modal */}
+            <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${B[100]}`, position: 'sticky', top: 0, background: '#fff', zIndex: 2, borderRadius: '12px 12px 0 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: B[900] }}>{cmdEditee ? '✏️ Modifier le chantier' : '🏗️ Nouveau chantier'}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Remplissez les informations ci-dessous</div>
+                </div>
+                <button onClick={() => setModal(false)} style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 6, padding: '5px 10px', cursor: 'pointer', color: '#64748b', fontSize: 18, lineHeight: 1 }}>×</button>
               </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Statut</label>
-                <select style={sInput} value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })}>
-                  {Object.entries(STATUTS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+
+              {/* ── Section 1 : Identification ── */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                  1. Identification du chantier
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                      Référence interne
+                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Numéro unique du chantier</span>
+                    </label>
+                    <input style={sInput} value={form.reference || ''} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Ex : CMD-2025-001" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                      Statut
+                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Avancement du chantier</span>
+                    </label>
+                    <select style={sInput} value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })}>
+                      {Object.entries(STATUTS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section 2 : Client ── */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                  2. Client
+                </div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                  Client associé *
+                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Un chantier doit être lié à un client</span>
+                </label>
+                <select style={{ ...sInput, borderColor: !form.clientId ? '#fca5a5' : B[200] }} value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}>
+                  <option value="">— Sélectionner un client —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.numeroAffaire ? `[${c.numeroAffaire}]  ` : ''}{c.nom}{c.telephone ? `  ·  ${c.telephone}` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
-            </div>
 
-            <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Client *</label>
-            <select style={sInput} value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}>
-              <option value="">-- Sélectionner un client --</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
-            </select>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Date chantier</label>
-                <input type="date" style={sInput} value={form.dateCommande} onChange={e => setForm({ ...form, dateCommande: e.target.value })} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Date livraison</label>
-                <input type="date" style={sInput} value={form.dateLivraison || ''} onChange={e => setForm({ ...form, dateLivraison: e.target.value })} />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <label style={{ fontSize: 11, color: '#64748b' }}>Produits</label>
-                <button onClick={ajouterLigne} style={{ ...sBtn, padding: '3px 10px', fontSize: 11 }}>+ Ligne</button>
-              </div>
-              {(form.lignes || []).map((ligne, idx) => (
-                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                  <select value={ligne.produitId} onChange={e => modifierLigne(idx, 'produitId', e.target.value)} style={{ ...sInput, marginBottom: 0 }}>
-                    <option value="">-- Produit --</option>
-                    {produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                  </select>
-                  <input type="number" min="1" value={ligne.quantite} onChange={e => modifierLigne(idx, 'quantite', Number(e.target.value))} style={{ ...sInput, marginBottom: 0 }} placeholder="Qté" />
-                  <div style={{ fontSize: 12, color: B[700], fontWeight: 600, textAlign: 'right' }}>{fmt(ligne.total)} F</div>
-                  <button onClick={() => supprimerLigne(idx)} style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 4, padding: '5px 7px', cursor: 'pointer', color: B[600], fontSize: 12 }}>×</button>
+              {/* ── Section 3 : Dates ── */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                  3. Planification
                 </div>
-              ))}
-              {(form.lignes || []).length > 0 && (
-                <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 13, color: B[900], marginTop: 6 }}>
-                  Total : {fmt(montantTotal(form.lignes))} FCFA
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                      Date de début
+                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Démarrage du chantier</span>
+                    </label>
+                    <input type="date" style={sInput} value={form.dateCommande} onChange={e => setForm({ ...form, dateCommande: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                      Date de livraison
+                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Optionnelle</span>
+                    </label>
+                    <input type="date" style={sInput} value={form.dateLivraison || ''} onChange={e => setForm({ ...form, dateLivraison: e.target.value })} />
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* ── Section 4 : Produits ── */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                  4. Produits / Matériaux sortis
+                </div>
+
+                {/* Barre de recherche + filtre catégorie */}
+                <div style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8 }}>🔍 Filtrer les produits disponibles</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 3 }}>Recherche par désignation / référence / RAL</label>
+                      <input
+                        value={rechercheP}
+                        onChange={e => setRechercheP(e.target.value)}
+                        placeholder="Ex: aluminium, ALU-50, RAL 9016..."
+                        style={{ ...sInput, marginBottom: 0, fontSize: 12 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 3 }}>Filtrer par catégorie</label>
+                      <select value={filtreCatP} onChange={e => setFiltreCatP(e.target.value)} style={{ ...sInput, marginBottom: 0, fontSize: 12 }}>
+                        <option value="">— Toutes les catégories —</option>
+                        {categoriesProduits.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {(rechercheP || filtreCatP) && (
+                    <div style={{ marginTop: 6, fontSize: 10, color: B[600] }}>
+                      {produitsFiltres.length} produit{produitsFiltres.length !== 1 ? 's' : ''} trouvé{produitsFiltres.length !== 1 ? 's' : ''}
+                      <button onClick={() => { setRechercheP(''); setFiltreCatP('') }}
+                        style={{ marginLeft: 8, background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 10, textDecoration: 'underline' }}>
+                        Effacer les filtres
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* En-tête colonnes */}
+                {(form.lignes || []).length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 70px 90px 80px 28px', gap: 6, marginBottom: 4, padding: '0 2px' }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Désignation du produit</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Quantité</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Prix unitaire</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'right' }}>Total</div>
+                    <div />
+                  </div>
+                )}
+
+                {/* Lignes produits */}
+                {(form.lignes || []).map((ligne, idx) => {
+                  const stockInsuffisant = ligne.produitId && ligne.stockDispo !== undefined && ligne.quantite > ligne.stockDispo
+                  return (
+                    <div key={idx} style={{ marginBottom: 6, background: stockInsuffisant ? '#fff7ed' : '#f8fafc', border: `1px solid ${stockInsuffisant ? '#fed7aa' : B[100]}`, borderRadius: 7, padding: '8px 10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 70px 90px 80px 28px', gap: 6, alignItems: 'center' }}>
+                        <div>
+                          <select value={ligne.produitId} onChange={e => modifierLigne(idx, 'produitId', e.target.value)}
+                            style={{ ...sInput, marginBottom: 0, fontSize: 12, background: '#fff' }}>
+                            <option value="">— Choisir un produit —</option>
+                            {produitsFiltres.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.reference ? `[${p.reference}] ` : ''}{p.designation || p.nom}{p.ral ? ` · ${p.ral}` : ''}{p.serie ? ` · ${p.serie}` : ''} — stock: {p.stock ?? 0}
+                              </option>
+                            ))}
+                            {produitsFiltres.length === 0 && <option disabled>Aucun produit ne correspond au filtre</option>}
+                          </select>
+                          {ligne.produitId && (
+                            <div style={{ fontSize: 10, color: B[600], marginTop: 3, display: 'flex', gap: 8 }}>
+                              {ligne.produitRef && <span>Réf : <strong>{ligne.produitRef}</strong></span>}
+                              <span style={{ color: stockInsuffisant ? '#f97316' : '#16a34a', fontWeight: 600 }}>
+                                Stock dispo : {ligne.stockDispo ?? '—'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <input type="number" min="1" value={ligne.quantite}
+                          onChange={e => modifierLigne(idx, 'quantite', Number(e.target.value))}
+                          style={{ ...sInput, marginBottom: 0, fontSize: 12, textAlign: 'center', background: '#fff', borderColor: stockInsuffisant ? '#f97316' : undefined }}
+                          placeholder="Qté" />
+                        <input type="number" min="0" value={ligne.prixUnit}
+                          onChange={e => modifierLigne(idx, 'prixUnit', Number(e.target.value))}
+                          style={{ ...sInput, marginBottom: 0, fontSize: 12, background: '#fff' }}
+                          placeholder="Prix FCFA" />
+                        <div style={{ fontSize: 12, color: B[700], fontWeight: 700, textAlign: 'right' }}>{fmt(ligne.total)}</div>
+                        <button onClick={() => supprimerLigne(idx)}
+                          style={{ background: '#fee2e2', border: 'none', borderRadius: 5, width: 24, height: 24, cursor: 'pointer', color: '#dc2626', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
+                      </div>
+                      {stockInsuffisant && (
+                        <div style={{ fontSize: 10, color: '#f97316', marginTop: 5, fontWeight: 600 }}>
+                          ⚠ Quantité demandée ({ligne.quantite}) dépasse le stock disponible ({ligne.stockDispo})
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* Bouton ajouter ligne */}
+                <button onClick={ajouterLigne}
+                  style={{ width: '100%', padding: '8px', borderRadius: 7, border: `1.5px dashed ${B[300]}`, background: 'transparent', color: B[600], fontWeight: 600, fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
+                  + Ajouter un produit
+                </button>
+
+                {/* Total */}
+                {(form.lignes || []).length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${B[100]}` }}>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>Montant total HT :</span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: B[900] }}>{fmt(montantTotal(form.lignes))} FCFA</span>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Section 5 : Note ── */}
+              <div style={{ marginBottom: 4 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                  5. Remarques
+                </div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                  Note libre
+                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Instructions, observations, détails du chantier</span>
+                </label>
+                <textarea value={form.note || ''} onChange={e => setForm({ ...form, note: e.target.value })}
+                  rows={2} placeholder="Ex : Chantier sur 3 jours, accès côté nord, attention aux finitions..."
+                  style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit' }} />
+              </div>
+
             </div>
 
-            <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Note</label>
-            <textarea value={form.note || ''} onChange={e => setForm({ ...form, note: e.target.value })}
-              rows={2} placeholder="Note optionnelle..."
-              style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit' }} />
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            {/* Pied modal sticky */}
+            <div style={{ padding: '14px 24px', borderTop: `1px solid ${B[100]}`, display: 'flex', gap: 8, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff', borderRadius: '0 0 12px 12px' }}>
               <button onClick={() => setModal(false)} style={sBtnSec}>Annuler</button>
-              <button onClick={sauvegarder} style={sBtn}>{cmdEditee ? 'Enregistrer' : 'Créer'}</button>
+              <button onClick={sauvegarder} style={{ ...sBtn, opacity: !form.clientId ? 0.5 : 1 }}>
+                {cmdEditee ? '💾 Enregistrer' : '✅ Créer le chantier'}
+              </button>
             </div>
           </div>
         </div>

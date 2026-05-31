@@ -70,7 +70,7 @@ function App() {
       case 'categories':   return <Categories categories={categories} produits={produits} droits={droits} />
       case 'clients':      return <Clients clients={clients} droits={droits} />
       case 'fournisseurs': return <Fournisseurs fournisseurs={fournisseurs} categories={categories.donnees} droits={droits} />
-      case 'commandes':    return <Chantiers commandes={commandes} produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} droits={droits} />
+      case 'commandes':    return <Chantiers commandes={commandes} produits={produits} mouvements={mouvements} clients={clients.donnees} fournisseurs={fournisseurs.donnees} droits={droits} />
       case 'parametres':   return <Parametres userActif={userActif} />
       default:             return <Dashboard produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} commandes={commandes.donnees} mouvements={mouvements.donnees} categories={categories.donnees} setPageActive={setPageActive} />
     }

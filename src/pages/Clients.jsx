@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { genId } from '../utils/storage'
 
-const CHAMPS_VIDES = { nom: '', telephone: '', email: '', adresse: '', note: '' }
+const CHAMPS_VIDES = { numeroAffaire: '', nom: '', telephone: '', email: '', adresse: '', note: '' }
 
 const B = {
   900: '#0a1929', 700: '#0f2847', 600: '#1565c0',
@@ -48,7 +48,8 @@ function Clients({ clients }) {
 
   const liste = donnees.filter(c =>
     c.nom.toLowerCase().includes(recherche.toLowerCase()) ||
-    (c.telephone || '').includes(recherche)
+    (c.telephone || '').includes(recherche) ||
+    (c.numeroAffaire || '').toLowerCase().includes(recherche.toLowerCase())
   )
 
   const ouvrirAjout = () => { setClientEdite(null); setForm(CHAMPS_VIDES); setModal(true) }
@@ -59,7 +60,7 @@ function Clients({ clients }) {
   }
 
   const sauvegarder = () => {
-    if (!form.nom.trim()) return
+    if (!form.nom.trim() || !form.numeroAffaire.trim()) return
     if (clientEdite) {
       modifier(clientEdite.id, form)
       if (detail?.id === clientEdite.id) setDetail({ ...detail, ...form })
@@ -88,7 +89,7 @@ function Clients({ clients }) {
         </div>
 
         <input
-          placeholder="Rechercher par nom ou téléphone..."
+          placeholder="Rechercher par nom, N° affaire ou téléphone..."
           value={recherche}
           onChange={e => setRecherche(e.target.value)}
           style={{ ...styleInput, marginBottom: 16, maxWidth: 320 }}
@@ -128,6 +129,11 @@ function Clients({ clients }) {
                       <div style={{ fontWeight: 600, fontSize: 13, color: B[900], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {c.nom}
                       </div>
+                      {c.numeroAffaire && (
+                        <div style={{ fontSize: 10, color: B[600], fontWeight: 700, letterSpacing: '0.3px' }}>
+                          N° {c.numeroAffaire}
+                        </div>
+                      )}
                       {c.telephone && <div style={{ fontSize: 11, color: '#64748b' }}>{c.telephone}</div>}
                     </div>
                   </div>
@@ -168,6 +174,7 @@ function Clients({ clients }) {
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Client</div>
           </div>
 
+          <Ligne label="N° Affaire"  valeur={detail.numeroAffaire} />
           <Ligne label="Téléphone" valeur={detail.telephone} />
           <Ligne label="Email"     valeur={detail.email} />
           <Ligne label="Adresse"   valeur={detail.adresse} />
@@ -195,6 +202,7 @@ function Clients({ clients }) {
             </h3>
 
             {[
+              { key: 'numeroAffaire', label: 'N° Affaire *', placeholder: 'Ex : AFF-2025-001' },
               { key: 'nom',       label: 'Nom *',      placeholder: 'Nom complet' },
               { key: 'telephone', label: 'Téléphone',  placeholder: '699 123 456' },
               { key: 'email',     label: 'Email',      placeholder: 'email@exemple.com' },
