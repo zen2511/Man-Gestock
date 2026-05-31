@@ -34,45 +34,76 @@ function Header({ pageActive, alertes, setPageActive, userActif, onLoginClick, o
       </h1>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* Alertes stock */}
+
+        {/* ── Alertes stock ── */}
         <button
           onClick={() => setPageActive('produits')}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '5px 12px',
-            borderRadius: 5,
-            border: alertes > 0 ? '1px solid #bbdefb' : '1px solid #e1e8f0',
-            background: alertes > 0 ? '#e3f2fd' : '#f5f8fc',
-            color: alertes > 0 ? '#1565c0' : '#90a4ae',
+            gap: 7,
+            padding: '6px 14px 6px 10px',
+            borderRadius: 6,
+            border: alertes > 0 ? '1.5px solid #f87171' : '1px solid #e1e8f0',
+            background: alertes > 0 ? '#fef2f2' : '#f5f8fc',
+            color: alertes > 0 ? '#b91c1c' : '#90a4ae',
             fontSize: 12,
-            fontWeight: alertes > 0 ? 600 : 400,
+            fontWeight: alertes > 0 ? 700 : 400,
             cursor: 'pointer',
+            boxShadow: alertes > 0 ? '0 0 0 3px rgba(239,68,68,0.15)' : 'none',
+            transition: 'all 0.2s',
           }}
         >
+          {/* Cloche */}
+          <span style={{
+            fontSize: 16,
+            lineHeight: 1,
+            animation: alertes > 0 ? 'ring 1.2s ease infinite' : 'none',
+            display: 'inline-block',
+            filter: alertes > 0 ? 'none' : 'grayscale(1) opacity(0.4)',
+          }}>
+            🔔
+          </span>
+
           {alertes > 0 ? (
             <>
+              {/* Badge nombre */}
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: 16,
-                height: 16,
-                borderRadius: '50%',
-                background: '#1565c0',
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+                background: '#dc2626',
                 color: '#fff',
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
-              }}>{alertes}</span>
-              Rupture de stock
+                padding: '0 4px',
+              }}>
+                {alertes}
+              </span>
+              <span>Rupture de stock</span>
             </>
           ) : (
-            'Aucune alerte'
+            <span>Aucune alerte</span>
           )}
         </button>
 
-        {/* Zone utilisateur */}
+        {/* Animation cloche */}
+        <style>{`
+          @keyframes ring {
+            0%   { transform: rotate(0deg); }
+            10%  { transform: rotate(15deg); }
+            20%  { transform: rotate(-15deg); }
+            30%  { transform: rotate(10deg); }
+            40%  { transform: rotate(-10deg); }
+            50%  { transform: rotate(0deg); }
+            100% { transform: rotate(0deg); }
+          }
+        `}</style>
+
+        {/* ── Zone utilisateur ── */}
         {estVisiteur ? (
           <button
             onClick={onLoginClick}
