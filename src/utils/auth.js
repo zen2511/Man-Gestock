@@ -12,7 +12,18 @@ export const VISITEUR_ANONYME = {
 }
 
 // ── Utilisateurs par défaut ──────────────────────────────────
-const USERS_DEFAUT = []
+const USERS_DEFAUT = [
+  {
+    id: '1',
+    nom: 'Admin',
+    prenom: 'Principal',
+    email: 'admin@mangestock.com',
+    motDePasse: 'admin123',
+    role: 'admin',
+    actif: true,
+    dateCreation: new Date().toISOString(),
+  }
+]
 
 // ── Droits par rôle ──────────────────────────────────────────
 export const DROITS = {
