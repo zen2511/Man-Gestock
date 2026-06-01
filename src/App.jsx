@@ -96,7 +96,7 @@ function App() {
       case 'commandes':
         return <Chantiers
           commandes={commandes}
-          produits={produits.donnees}
+          produits={produits}
           clients={clients.donnees}
           fournisseurs={fournisseurs.donnees}
           droits={droits}
