@@ -14,12 +14,9 @@ import { useStore } from './utils/useStore'
 import { CLES, PRODUITS_DEFAUT, CLIENTS_DEFAUT, FOURNISSEURS_DEFAUT, CATEGORIES_DEFAUT, COMMANDES_DEFAUT } from './utils/storage'
 import { getSession, logout, DROITS, VISITEUR_ANONYME } from './utils/auth'
 
-// ── Réinitialisation unique au déploiement ───────────────────
-// Changer la valeur 'v1' pour forcer un nouveau nettoyage
 const VERSION   = 'v1'
 const CLE_VERSION = 'mansa_version'
 
-// Déplacé dans une fonction pour éviter tout crash au niveau module
 function reinitialiserSiNouvelleVersion() {
   try {
     if (localStorage.getItem(CLE_VERSION) !== VERSION) {
@@ -32,7 +29,6 @@ function reinitialiserSiNouvelleVersion() {
 }
 
 function App() {
-  // Exécuté à l'intérieur du composant, React est déjà monté
   reinitialiserSiNouvelleVersion()
 
   const [pageActive, setPageActive]   = useState('dashboard')
@@ -47,7 +43,6 @@ function App() {
   const mouvements   = useStore(CLES.mouvements,   [])
   const categories   = useStore(CLES.categories,   CATEGORIES_DEFAUT)
 
-  // Correction : stock (pas quantite) correspond au champ réel des produits
   const alertes = produits.donnees.filter(p => (p.stock || 0) <= (p.stockMin || 5)).length
   const droits  = DROITS[userActif.role]?.peut ?? DROITS.visiteur.peut
 
@@ -65,14 +60,59 @@ function App() {
       )
     }
     switch (pageActive) {
-      case 'dashboard':    return <Dashboard produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} commandes={commandes.donnees} mouvements={mouvements.donnees} categories={categories.donnees} setPageActive={setPageActive} />
-      case 'produits':     return <Produits produits={produits} mouvements={mouvements} fournisseurs={fournisseurs.donnees} categories={categories.donnees} droits={droits} />
-      case 'categories':   return <Categories categories={categories} produits={produits} droits={droits} />
-      case 'clients':      return <Clients clients={clients} droits={droits} />
-      case 'fournisseurs': return <Fournisseurs fournisseurs={fournisseurs} categories={categories.donnees} droits={droits} />
-      case 'commandes':    return <Chantiers commandes={commandes} produits={produits} mouvements={mouvements} clients={clients.donnees} fournisseurs={fournisseurs.donnees} droits={droits} />
-      case 'parametres':   return <Parametres userActif={userActif} />
-      default:             return <Dashboard produits={produits.donnees} clients={clients.donnees} fournisseurs={fournisseurs.donnees} commandes={commandes.donnees} mouvements={mouvements.donnees} categories={categories.donnees} setPageActive={setPageActive} />
+      case 'dashboard':
+        return <Dashboard
+          produits={produits.donnees}
+          clients={clients.donnees}
+          fournisseurs={fournisseurs.donnees}
+          commandes={commandes.donnees}
+          mouvements={mouvements.donnees}
+          categories={categories.donnees}
+          setPageActive={setPageActive}
+        />
+      case 'produits':
+        return <Produits
+          produits={produits}
+          mouvements={mouvements}
+          fournisseurs={fournisseurs.donnees}
+          categories={categories.donnees}
+          droits={droits}
+        />
+      case 'categories':
+        return <Categories
+          categories={categories}
+          produits={produits}
+          droits={droits}
+        />
+      case 'clients':
+        return <Clients clients={clients} droits={droits} />
+      case 'fournisseurs':
+        return <Fournisseurs
+          fournisseurs={fournisseurs}
+          produits={produits.donnees}
+          categories={categories.donnees}
+          droits={droits}
+        />
+      case 'commandes':
+        return <Chantiers
+          commandes={commandes}
+          produits={produits.donnees}
+          clients={clients.donnees}
+          fournisseurs={fournisseurs.donnees}
+          droits={droits}
+        />
+      case 'parametres':
+        return <Parametres userActif={userActif} />
+      default:
+        return <Dashboard
+          produits={produits.donnees}
+          clients={clients.donnees}
+          fournisseurs={fournisseurs.donnees}
+          commandes={commandes.donnees}
+          mouvements={mouvements.donnees}
+          categories={categories.donnees}
+          setPageActive={setPageActive}
+        />
     }
   }
 

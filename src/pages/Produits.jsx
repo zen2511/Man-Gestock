@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { genId } from '../utils/storage'
 import * as XLSX from 'xlsx'
 
@@ -10,24 +10,26 @@ const FORM_VIDE = {
   ral:         '',
   categorieId: '',
   categorie:   '',
-  icone:       '',
-  couleur:     '',
   serie:       '',
   stock:       0,
   stockMin:    5,
   fournisseurId: '',
 }
 
-// ── Normalisation texte (accents + casse) ─────────────────
-const norm = (txt) =>
-  String(txt || '').trim().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
-function Produits({ produits, mouvements, fournisseurs = [], categories = [], droits }) {
+function Produits({ produits, mouvements, fournisseurs = [], categories: categoriesArg = [], droits }) {
   const { donnees, ajouter, modifier, effacer } = produits
+  // Accept both plain array and store object
+  const categories = Array.isArray(categoriesArg) ? categoriesArg : (categoriesArg.donnees || [])
+  const ajouterCategorie = Array.isArray(categoriesArg) ? (() => {}) : (categoriesArg.ajouter || (() => {}))
+
+  // Familles depuis Paramètres
+  const familles = (() => {
+    try { return JSON.parse(localStorage.getItem('mansa_familles')) || [] } catch { return [] }
+  })()
 
   const [recherche,      setRecherche]      = useState('')
   const [filtreCat,      setFiltreCat]      = useState('tous')
+  const [filtreFam,      setFiltreFam]      = useState('tous')
   const [modal,          setModal]          = useState(false)
   const [produitEdite,   setProduitEdite]   = useState(null)
   const [form,           setForm]           = useState(FORM_VIDE)
@@ -52,40 +54,13 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
   }
   const sLabel = { fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }
 
-  // ── Résolution catégorie (id prioritaire, puis nom) ─────
+  // ── Filtrage ──────────────────────────────────────────────
+  // Résolution catégorie robuste (id d'abord, puis nom)
+  const norm = (txt) => String(txt || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   const resoudreCat = (p) =>
     categories.find(c => c.id === p.categorieId) ||
     categories.find(c => norm(c.nom) === norm(p.categorie))
 
-  // ── Auto-réparation des produits sans categorieId ──────────
-  // Déclenché dès que categories est chargé (non vide)
-  // Utilise un flag en localStorage pour ne tourner qu'une fois par session
-  useEffect(() => {
-    if (categories.length === 0) return
-    const CLE_REPARE = 'mansa_cat_repaired_v2'
-    if (localStorage.getItem(CLE_REPARE)) return
-
-    let nbRepares = 0
-    donnees.forEach(p => {
-      if (!p.categorieId && p.categorie) {
-        const cat = categories.find(c => norm(c.nom) === norm(p.categorie))
-        if (cat) {
-          modifier(p.id, {
-            categorieId: cat.id,
-            categorie:   cat.nom,
-            icone:       cat.icone   || '',
-            couleur:     cat.couleur || '',
-          })
-          nbRepares++
-        }
-      }
-    })
-
-    localStorage.setItem(CLE_REPARE, '1')
-    if (nbRepares > 0) console.log(`[Produits] ${nbRepares} produit(s) réparé(s)`)
-  }, [categories.length]) // ← se relance si categories se charge après
-
-  // ── Filtrage ──────────────────────────────────────────────
   const produitsFiltres = donnees.filter(p => {
     const q = recherche.toLowerCase()
     const matchSearch =
@@ -95,8 +70,10 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
       (p.ral         || '').toLowerCase().includes(q) ||
       (p.categorie   || '').toLowerCase().includes(q)
     const catResolue = resoudreCat(p)
-    const matchCat   = filtreCat === 'tous' || catResolue?.id === filtreCat
-    return matchSearch && matchCat
+    const matchCat = filtreCat === 'tous' || catResolue?.id === filtreCat
+    // Filtre famille : via catégorie du produit
+    const matchFam = filtreFam === 'tous' || catResolue?.familleId === filtreFam
+    return matchSearch && matchCat && matchFam
   })
 
   // ── Stats ─────────────────────────────────────────────────
@@ -105,8 +82,8 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
 
   // ── Badge stock ───────────────────────────────────────────
   const badgeStock = (p) => {
-    if ((p.stock || 0) <= 0)                 return { label: 'Rupture', color: '#ef4444', bg: '#fef2f2' }
-    if ((p.stock || 0) <= (p.stockMin || 5)) return { label: 'Faible',  color: '#f97316', bg: '#fff7ed' }
+    if ((p.stock || 0) <= 0)                   return { label: 'Rupture', color: '#ef4444', bg: '#fef2f2' }
+    if ((p.stock || 0) <= (p.stockMin || 5))   return { label: 'Faible',  color: '#f97316', bg: '#fff7ed' }
     return { label: 'OK', color: '#16a34a', bg: '#f0fdf4' }
   }
 
@@ -128,11 +105,9 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
     const cat = categories.find(c => c.id === form.categorieId)
     const produit = {
       ...form,
-      categorie: cat?.nom    || form.categorie || '',
-      icone:     cat?.icone  || form.icone     || '',
-      couleur:   cat?.couleur|| form.couleur   || '',
-      stock:     Number(form.stock)    || 0,
-      stockMin:  Number(form.stockMin) || 5,
+      categorie: cat?.nom || '',
+      stock:    Number(form.stock)    || 0,
+      stockMin: Number(form.stockMin) || 5,
     }
     if (produitEdite) {
       modifier(produitEdite.id, produit)
@@ -195,54 +170,84 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const wb    = XLSX.read(new Uint8Array(e.target.result), { type: 'array' })
-        const ws    = wb.Sheets[wb.SheetNames[0]]
-        let lignes  = XLSX.utils.sheet_to_json(ws, { defval: '', range: 2 })
+        const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' })
+        const ws  = wb.Sheets[wb.SheetNames[0]]
+        let lignes = XLSX.utils.sheet_to_json(ws, { defval: '', range: 2 })
         if (lignes.length === 0) lignes = XLSX.utils.sheet_to_json(ws, { defval: '' })
         if (lignes.length === 0) { alert('Fichier vide ou format non reconnu.'); return }
 
         let n = 0
         lignes.forEach(l => {
-          const desig = (l['Désignation'] || l['Designation'] || l['DESIGNATION'] || '').toString().trim()
+          const desig = (l['Désignation'] || l['Designation'] || '').toString().trim()
           if (!desig) return
 
-          // Catégorie : recherche par nom normalisé → récupère id + icone + couleur
-          // Identique au comportement du formulaire manuel (sauvegarder)
-          const nomCat = (l['Catégorie'] || l['Categorie'] || l['CATEGORIE'] || '').toString().trim()
-          const cat    = categories.find(c => norm(c.nom) === norm(nomCat))
+          console.log('Ligne Excel complète :', l)
 
-          // Fournisseur : recherche par nom normalisé
-          const nomFourn = (l['Fournisseur'] || l['FOURNISSEUR'] || l['Nom Fournisseur'] || '').toString().trim()
-          const fourn    = fournisseurs.find(f => norm(f.nom) === norm(nomFourn))
+          const nomCat  = (l['Catégorie'] || l['Categorie'] || '').toString().trim()
+          const cat     = categories.find(c => c.nom.toLowerCase() === nomCat.toLowerCase())
+         const nomFourn =
+  (
+    l['Fournisseur'] ||
+    l['FOURNISSEUR'] ||
+    l['Nom Fournisseur'] ||
+    ''
+  )
+  .toString()
+  .trim()
 
-          const reference = (l['Référence'] || l['Reference'] || l['REFERENCE'] || '').toString().trim()
+  console.log('Nom fournisseur Excel :', nomFourn)
+  console.log(
+  'Liste fournisseurs :',
+  fournisseurs.map(f => ({
+    id: f.id,
+    nom: f.nom
+  }))
+)
 
-          // Upsert : mise à jour si référence identique, sinon ajout
-          const produitExistant = reference
-            ? donnees.find(p => norm(p.reference) === norm(reference))
-            : null
+          const normaliser = (txt) =>
+  String(txt || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 
-          // Structure identique à sauvegarder() — icone et couleur transmis
-          const produitData = {
-            reference,
-            designation:   desig,
-            ral:           (l['RAL'] || '').toString().trim(),
-            categorieId:   cat?.id      || '',
-            categorie:     cat?.nom     || nomCat,
-            icone:         cat?.icone   || '',
-            couleur:       cat?.couleur || '',
-            serie:         (l['Série'] || l['Serie'] || l['SERIE'] || '').toString().trim(),
-            stock:         Number(l['Stock'])     || 0,
-            stockMin:      Number(l['Stock Min']) || 5,
-            fournisseurId: fourn?.id    || '',
-          }
+const fourn = fournisseurs.find(
+  f => normaliser(f.nom) === normaliser(nomFourn)
+)
 
-          if (produitExistant) {
-            modifier(produitExistant.id, produitData)
-          } else {
-            ajouter({ id: genId(), ...produitData, dateAjout: new Date().toISOString().slice(0, 10) })
-          }
-          n++
+console.log('Fournisseur trouvé :', fourn)
+
+          const reference = (l['Référence'] || l['Reference'] || '').toString().trim()
+
+const produitExistant = donnees.find(
+  p => p.reference?.toLowerCase() === reference.toLowerCase()
+)
+
+const produitData = {
+  reference,
+  designation: desig,
+  ral: (l['RAL'] || '').toString().trim(),
+  categorieId: cat?.id || '',
+  categorie: cat?.nom || nomCat,
+  serie: (l['Série'] || l['Serie'] || '').toString().trim(),
+  stock: Number(l['Stock']) || 0,
+  stockMin: Number(l['Stock Min']) || 5,
+  fournisseurId: fourn?.id || '',
+}
+
+console.log('Produit à enregistrer :', produitData)
+
+if (produitExistant) {
+  modifier(produitExistant.id, produitData)
+} else {
+  ajouter({
+    id: genId(),
+    ...produitData,
+    dateAjout: new Date().toISOString().slice(0, 10),
+  })
+}
+
+n++
         })
         alert(`${n} produit(s) importé(s) avec succès !`)
       } catch (err) {
@@ -297,40 +302,71 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
         </div>
       </div>
 
-      {/* Filtres catégories */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filtres */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
-          placeholder="🔍 Référence, désignation, série, RAL..."
+          placeholder="Référence, désignation, série, RAL..."
           value={recherche}
           onChange={e => setRecherche(e.target.value)}
           style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 200, maxWidth: 340 }}
         />
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={() => setFiltreCat('tous')} style={{
-            padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            background: filtreCat === 'tous' ? '#0f2847' : '#fff',
-            color: filtreCat === 'tous' ? '#fff' : '#64748b',
-            border: `1.5px solid ${filtreCat === 'tous' ? '#0f2847' : '#e2e8f0'}`,
-          }}>
-            Tous ({donnees.length})
-          </button>
-          {categories.map(cat => {
-            // Compte via resoudreCat — couvre id direct ET fallback par nom
+        {/* Filtre par Famille */}
+        {familles.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Famille</span>
+            <button onClick={() => { setFiltreFam('tous'); setFiltreCat('tous') }} style={{
+              padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              background: filtreFam === 'tous' ? '#0f2847' : '#fff',
+              color: filtreFam === 'tous' ? '#fff' : '#64748b',
+              border: `1.5px solid ${filtreFam === 'tous' ? '#0f2847' : '#e2e8f0'}`,
+            }}>Toutes</button>
+            {familles.map(fam => {
+              const nFam = donnees.filter(p => resoudreCat(p)?.familleId === fam.id).length
+              if (nFam === 0) return null
+              const actif = filtreFam === fam.id
+              return (
+                <button key={fam.id} onClick={() => { setFiltreFam(actif ? 'tous' : fam.id); setFiltreCat('tous') }} style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: actif ? (fam.couleur || '#0f2847') : '#fff',
+                  color: actif ? '#fff' : '#64748b',
+                  border: `1.5px solid ${actif ? (fam.couleur || '#0f2847') : '#e2e8f0'}`,
+                }}>
+                  {fam.nom} ({nFam})
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Filtre par Catégorie */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Catégorie</span>
+        <button onClick={() => setFiltreCat('tous')} style={{
+          padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          background: filtreCat === 'tous' ? '#0f2847' : '#fff',
+          color: filtreCat === 'tous' ? '#fff' : '#64748b',
+          border: `1.5px solid ${filtreCat === 'tous' ? '#0f2847' : '#e2e8f0'}`,
+        }}>
+          Toutes ({donnees.length})
+        </button>
+        {categories
+          .filter(cat => filtreFam === 'tous' || cat.familleId === filtreFam)
+          .map(cat => {
             const n = donnees.filter(p => resoudreCat(p)?.id === cat.id).length
             if (n === 0) return null
             const actif = filtreCat === cat.id
             return (
               <button key={cat.id} onClick={() => setFiltreCat(actif ? 'tous' : cat.id)} style={{
-                padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 background: actif ? (cat.couleur || '#0f2847') : '#fff',
                 color: actif ? '#fff' : '#64748b',
                 border: `1.5px solid ${actif ? (cat.couleur || '#0f2847') : '#e2e8f0'}`,
               }}>
-                {cat.icone} {cat.nom} ({n})
+                {cat.nom} ({n})
               </button>
             )
           })}
-        </div>
       </div>
 
       <p style={{ color: '#64748b', fontSize: 13, marginBottom: 14 }}>{produitsFiltres.length} produit(s)</p>
@@ -359,9 +395,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
             ) : (
               produitsFiltres.map((p, i) => {
                 const badge = badgeStock(p)
-                // Résolution catégorie : par id d'abord, puis par nom (fallback import)
                 const cat   = categories.find(c => c.id === p.categorieId)
-                           || categories.find(c => norm(c.nom) === norm(p.categorie))
                 const fourn = fournisseurs.find(f => f.id === p.fournisseurId)
                 return (
                   <tr key={p.id} style={{ borderTop: '1px solid #f1f5f9', background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
@@ -383,16 +417,8 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
                         }}>
                           {cat.icone} {cat.nom}
                         </span>
-                      ) : p.categorie ? (
-                        <span style={{
-                          fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 20,
-                          background: '#f1f5f9', color: '#475569', whiteSpace: 'nowrap',
-                          border: '1px solid #e2e8f0',
-                        }}>
-                          {p.categorie}
-                        </span>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>{p.categorie || '—'}</span>
                       )}
                     </td>
                     <td style={{ padding: '11px 14px', fontSize: 13, color: '#475569' }}>
@@ -455,6 +481,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
               {produitEdite ? 'Modifier le produit' : 'Nouveau produit'}
             </h3>
 
+            {/* Référence + Désignation */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 14 }}>
               <div>
                 <label style={sLabel}>Référence</label>
@@ -470,6 +497,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
               </div>
             </div>
 
+            {/* RAL + Série */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
                 <label style={sLabel}>RAL</label>
@@ -485,11 +513,12 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
               </div>
             </div>
 
+            {/* Catégorie */}
             <label style={sLabel}>Catégorie</label>
             <select style={sInput} value={form.categorieId}
               onChange={e => {
                 const cat = categories.find(c => c.id === e.target.value)
-                setForm({ ...form, categorieId: e.target.value, categorie: cat?.nom || '', icone: cat?.icone || '', couleur: cat?.couleur || '' })
+                setForm({ ...form, categorieId: e.target.value, categorie: cat?.nom || '' })
               }}>
               <option value="">-- Sélectionner une catégorie --</option>
               {categories.map(c => (
@@ -497,6 +526,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
               ))}
             </select>
 
+            {/* Stock + Stock min */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
                 <label style={sLabel}>Stock</label>
@@ -510,6 +540,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
               </div>
             </div>
 
+            {/* Fournisseur */}
             <label style={sLabel}>Fournisseur</label>
             <select style={sInput} value={form.fournisseurId}
               onChange={e => setForm({ ...form, fournisseurId: e.target.value })}>
@@ -542,14 +573,17 @@ function Produits({ produits, mouvements, fournisseurs = [], categories = [], dr
             <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
               Stock actuel : <strong style={{ color: '#2563eb', fontSize: 16 }}>{modalMouvement.produit.stock || 0}</strong>
             </p>
+
             <label style={sLabel}>Quantité *</label>
             <input type="number" min="1" value={quantiteMvt}
               onChange={e => setQuantiteMvt(e.target.value)}
               style={sInput} />
+
             <label style={sLabel}>Note</label>
             <input value={noteMvt} onChange={e => setNoteMvt(e.target.value)}
               placeholder="Ex: Livraison fournisseur, vente client..."
               style={{ ...sInput, marginBottom: 24 }} />
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setModalMouvement(null)} style={sBtnSec}>Annuler</button>
               <button onClick={appliquerMouvement}
