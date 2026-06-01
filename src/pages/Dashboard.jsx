@@ -1,217 +1,316 @@
-const fmt = n => new Intl.NumberFormat('fr-FR').format(n || 0)
+const fmt    = n  => new Intl.NumberFormat('fr-FR').format(n || 0)
+const fmtPct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0
 
-// Blue-only palette
-const B = {
-  900: '#0a1929',
-  800: '#0d2137',
-  700: '#0f2847',
-  600: '#1565c0',
-  500: '#1976d2',
-  400: '#2196f3',
-  300: '#64b5f6',
-  200: '#bbdefb',
-  100: '#e3f2fd',
-  50:  '#f0f7ff',
-}
+function GraphMouvements({ mouvements }) {
+  // Grouper par jour sur les 30 derniers jours
+  const today = new Date()
+  today.setHours(0,0,0,0)
 
-function Dashboard({ produits = [], clients = [], fournisseurs = [], commandes = [], mouvements = [], categories = [], setPageActive }) {
-  const rupture     = produits.filter(p => (p.quantite || 0) <= 0)
-  const stockFaible = produits.filter(p => (p.quantite || 0) > 0 && (p.quantite || 0) <= (p.quantiteMin || 5))
-  const valeurStock = produits.reduce((acc, p) => acc + (p.prix || 0) * (p.quantite || 0), 0)
-  const commandesEnCours = commandes.filter(c => c.statut === 'en_cours' || c.statut === 'en_attente')
+  const jours = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    jours.push(d)
+  }
 
-  const derniersMvt = [...mouvements]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 6)
+  const data = jours.map(d => {
+    const key = d.toISOString().slice(0, 10)
+    const mvts = mouvements.filter(m => m.date && m.date.slice(0, 10) === key)
+    return {
+      label: d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
+      entrees: mvts.filter(m => m.type === 'entree').reduce((s, m) => s + (m.quantite || 0), 0),
+      sorties: mvts.filter(m => m.type === 'sortie').reduce((s, m) => s + (m.quantite || 0), 0),
+    }
+  })
 
-  const repartition = categories.map(cat => ({
-    ...cat,
-    count: produits.filter(p => p.categorieId === cat.id || p.categorie === cat.nom).length,
-  })).filter(c => c.count > 0)
+  const maxVal = Math.max(...data.map(d => Math.max(d.entrees, d.sorties)), 1)
+  const totalEntrees = data.reduce((s, d) => s + d.entrees, 0)
+  const totalSorties = data.reduce((s, d) => s + d.sorties, 0)
 
-  const kpis = [
-    { label: 'Produits',     valeur: produits.length,     page: 'produits'     },
-    { label: 'Catégories',   valeur: categories.length,   page: 'categories'   },
-    { label: 'Clients',      valeur: clients.length,      page: 'clients'      },
-    { label: 'Fournisseurs', valeur: fournisseurs.length, page: 'fournisseurs' },
-    { label: 'Chantiers',    valeur: commandes.length,    page: 'commandes'    },
-  ]
+  // Dimensions SVG
+  const W = 580, H = 140, PAD_L = 32, PAD_R = 8, PAD_T = 10, PAD_B = 28
+  const chartW = W - PAD_L - PAD_R
+  const chartH = H - PAD_T - PAD_B
+  const barW   = Math.max(3, Math.floor(chartW / jours.length / 2) - 1)
+  const step   = chartW / jours.length
+
+  // Graduations Y (3 lignes)
+  const ticks = [0, Math.round(maxVal / 2), maxVal]
+
+  // Afficher seulement 1 label sur 5 pour ne pas surcharger l'axe X
+  const showLabel = (i) => i % 5 === 0 || i === jours.length - 1
 
   return (
-    <div>
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: B[900], margin: 0 }}>Tableau de bord</h2>
-        <p style={{ color: '#64748b', fontSize: 12, marginTop: 3 }}>
-          Menuiserie Aluminium du Nord SA
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '18px 20px' }}>
+      {/* En-tête */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#0f2847' }}>
+          Mouvements de stock · 30 derniers jours
         </p>
-      </div>
-
-      {/* KPI */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-        gap: 10,
-        marginBottom: 16,
-      }}>
-        {kpis.map(k => (
-          <div
-            key={k.label}
-            onClick={() => setPageActive(k.page)}
-            style={{
-              background: '#fff',
-              border: `1px solid ${B[200]}`,
-              borderRadius: 8,
-              padding: '14px 16px',
-              cursor: 'pointer',
-              transition: 'border-color 0.12s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = B[300]}
-            onMouseLeave={e => e.currentTarget.style.borderColor = B[200]}
-          >
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 500 }}>{k.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: B[700] }}>{k.valeur}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Valeur stock + Chantiers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-        <div style={{
-          background: B[700],
-          borderRadius: 8,
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, color: B[300], fontWeight: 500, marginBottom: 4 }}>Valeur totale du stock</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>{fmt(Math.round(valeurStock))}</div>
-            <div style={{ fontSize: 11, color: B[300], marginTop: 2 }}>FCFA</div>
-          </div>
-        </div>
-
-        <div style={{
-          background: B[600],
-          borderRadius: 8,
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, color: B[200], fontWeight: 500, marginBottom: 4 }}>Chantiers en cours</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>{commandesEnCours.length}</div>
-            <div style={{ fontSize: 11, color: B[200], marginTop: 2 }}>à traiter</div>
-          </div>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#475569' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: '#1976d2', display: 'inline-block' }}/>
+            Entrées <strong style={{ color: '#0f2847' }}>{fmt(totalEntrees)}</strong>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#475569' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: '#e2e8f0', border: '1.5px solid #94a3b8', display: 'inline-block' }}/>
+            Sorties <strong style={{ color: '#0f2847' }}>{fmt(totalSorties)}</strong>
+          </span>
         </div>
       </div>
 
-      {/* Alertes + Catégories */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+      {mouvements.length === 0 ? (
+        <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, paddingBottom: 8 }}>Aucun mouvement enregistré.</p>
+      ) : (
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+          {/* Grille horizontale */}
+          {ticks.map((t, i) => {
+            const y = PAD_T + chartH - (t / maxVal) * chartH
+            return (
+              <g key={i}>
+                <line x1={PAD_L} y1={y} x2={W - PAD_R} y2={y}
+                  stroke={i === 0 ? '#cbd5e1' : '#f1f5f9'} strokeWidth={i === 0 ? 1 : 0.8} />
+                {t > 0 && (
+                  <text x={PAD_L - 4} y={y + 3.5} textAnchor="end"
+                    fontSize="8" fill="#94a3b8">{t}</text>
+                )}
+              </g>
+            )
+          })}
+
+          {/* Barres */}
+          {data.map((d, i) => {
+            const x     = PAD_L + i * step + step / 2
+            const hE    = d.entrees > 0 ? Math.max(2, (d.entrees / maxVal) * chartH) : 0
+            const hS    = d.sorties > 0 ? Math.max(2, (d.sorties / maxVal) * chartH) : 0
+            const yBase = PAD_T + chartH
+
+            return (
+              <g key={i}>
+                {/* Barre entrée */}
+                {hE > 0 && (
+                  <rect x={x - barW - 1} y={yBase - hE} width={barW} height={hE}
+                    fill="#1976d2" rx="1.5" opacity="0.9" />
+                )}
+                {/* Barre sortie */}
+                {hS > 0 && (
+                  <rect x={x + 1} y={yBase - hS} width={barW} height={hS}
+                    fill="#94a3b8" rx="1.5" opacity="0.7" />
+                )}
+                {/* Label axe X */}
+                {showLabel(i) && (
+                  <text x={x} y={H - 4} textAnchor="middle"
+                    fontSize="7.5" fill="#94a3b8">{d.label}</text>
+                )}
+              </g>
+            )
+          })}
+        </svg>
+      )}
+    </div>
+  )
+}
+
+function Dashboard({ produits = [], categories = [], mouvements = [], setPageActive }) {
+  const valeurStock   = produits.reduce((s, p) => s + (p.prixUnitaire || p.prix || 0) * (p.stock || p.quantite || 0), 0)
+  const totalArticles = produits.reduce((s, p) => s + (p.stock || p.quantite || 0), 0)
+  const ruptures      = produits.filter(p => (p.stock || p.quantite || 0) <= 0)
+  const faibles       = produits.filter(p => {
+    const q = p.stock ?? p.quantite ?? 0
+    return q > 0 && q <= (p.stockMin || 5)
+  })
+
+  const repartition = categories
+    .map(cat => ({
+      ...cat,
+      count: produits.filter(p => p.categorieId === cat.id || p.categorie === cat.nom).length,
+    }))
+    .filter(c => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
+
+  const top5 = [...produits]
+    .sort((a, b) => {
+      const va = (a.prixUnitaire || a.prix || 0) * (a.stock || a.quantite || 0)
+      const vb = (b.prixUnitaire || b.prix || 0) * (b.stock || b.quantite || 0)
+      return vb - va
+    })
+    .slice(0, 5)
+
+  const maxVal = top5[0]
+    ? (top5[0].prixUnitaire || top5[0].prix || 0) * (top5[0].stock || top5[0].quantite || 0)
+    : 1
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: '#0f172a' }}>
+
+      {/* En-tête */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: '#94a3b8', textTransform: 'uppercase' }}>
+          MAN Gestion de Stock
+        </p>
+        <h2 style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700, color: '#0f172a' }}>
+          Vue d'ensemble
+        </h2>
+      </div>
+
+      {/* Ligne principale : 3 métriques */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
+
+        {/* Valeur stock — carte accentuée */}
+        <div
+          onClick={() => setPageActive('produits')}
+          style={{
+            background: '#0f2847',
+            borderRadius: 10,
+            padding: '20px 22px',
+            cursor: 'pointer',
+            transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.92'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#64b5f6', textTransform: 'uppercase' }}>
+            Valeur du stock
+          </p>
+          <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+            {fmt(Math.round(valeurStock))}
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#90caf9' }}>FCFA</p>
+        </div>
+
+        {/* Produits */}
+        <div
+          onClick={() => setPageActive('produits')}
+          style={{
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 10,
+            padding: '20px 22px',
+            cursor: 'pointer',
+            transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = '#93c5fd'}
+          onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+        >
+          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#94a3b8', textTransform: 'uppercase' }}>
+            Références
+          </p>
+          <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: '#0f2847', lineHeight: 1 }}>
+            {produits.length}
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>{fmt(totalArticles)} unités en stock</p>
+        </div>
 
         {/* Alertes */}
-        <div style={{ background: '#fff', border: `1px solid ${B[200]}`, borderRadius: 8, padding: '16px 18px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: B[900] }}>Alertes stock</div>
-            <span style={{
-              fontSize: 11, fontWeight: 600,
-              color: rupture.length + stockFaible.length > 0 ? B[600] : '#64748b',
-              background: rupture.length + stockFaible.length > 0 ? B[100] : '#f1f5f9',
-              padding: '2px 8px', borderRadius: 20,
-            }}>
-              {rupture.length + stockFaible.length}
-            </span>
+        <div style={{
+          background: ruptures.length > 0 ? '#fff5f5' : '#fff',
+          border: `1px solid ${ruptures.length > 0 ? '#fecaca' : '#e2e8f0'}`,
+          borderRadius: 10,
+          padding: '20px 22px',
+        }}>
+          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#94a3b8', textTransform: 'uppercase' }}>
+            Alertes stock
+          </p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: ruptures.length > 0 ? '#dc2626' : '#16a34a', lineHeight: 1 }}>
+              {ruptures.length}
+            </p>
+            {faibles.length > 0 && (
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#f97316' }}>
+                +{faibles.length} faibles
+              </p>
+            )}
           </div>
-          {rupture.length === 0 && stockFaible.length === 0 ? (
-            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Aucune alerte</p>
-          ) : (
-            <>
-              {rupture.slice(0, 3).map(p => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: `1px solid ${B[50]}`, fontSize: 12 }}>
-                  <span style={{ color: B[800] }}>{p.nom}</span>
-                  <span style={{ fontWeight: 600, color: B[600], background: B[100], padding: '1px 7px', borderRadius: 20, fontSize: 10 }}>RUPTURE</span>
-                </div>
-              ))}
-              {stockFaible.slice(0, 3).map(p => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: `1px solid ${B[50]}`, fontSize: 12 }}>
-                  <span style={{ color: B[800] }}>{p.nom}</span>
-                  <span style={{ fontWeight: 600, color: B[500], background: B[100], padding: '1px 7px', borderRadius: 20, fontSize: 10 }}>Qté: {p.quantite}</span>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Catégories */}
-        <div style={{ background: '#fff', border: `1px solid ${B[200]}`, borderRadius: 8, padding: '16px 18px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: B[900], marginBottom: 12 }}>
-            Produits par catégorie
-          </div>
-          {repartition.length === 0 ? (
-            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Aucune catégorie configurée.</p>
-          ) : repartition.slice(0, 6).map(cat => (
-            <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: `1px solid ${B[50]}` }}>
-              <span style={{ flex: 1, fontSize: 12, color: '#334155' }}>{cat.nom}</span>
-              <div style={{ width: 50, height: 4, borderRadius: 2, background: B[100], overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.min(100, (cat.count / produits.length) * 100)}%`,
-                  background: B[500],
-                  borderRadius: 2,
-                }} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: B[600], minWidth: 16, textAlign: 'right' }}>{cat.count}</span>
-            </div>
-          ))}
+          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>
+            {ruptures.length === 0 ? 'Aucune rupture' : 'en rupture'}
+          </p>
         </div>
       </div>
 
-      {/* Mouvements */}
-      <div style={{ background: '#fff', border: `1px solid ${B[200]}`, borderRadius: 8, padding: '16px 18px' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: B[900], marginBottom: 12 }}>
-          Derniers mouvements de stock
-        </div>
-        {derniersMvt.length === 0 ? (
-          <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Aucun mouvement enregistré.</p>
-        ) : (
-          derniersMvt.map((m, i) => {
-            const produit = produits.find(p => p.id === m.produitId)
-            const entree  = m.type === 'entree'
+      {/* Ligne secondaire : top produits + catégories */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+        {/* Top produits par valeur */}
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '18px 20px' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 12, fontWeight: 700, color: '#0f2847' }}>
+            Top produits · valeur
+          </p>
+          {top5.length === 0 ? (
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Aucun produit.</p>
+          ) : top5.map((p, i) => {
+            const val = (p.prixUnitaire || p.prix || 0) * (p.stock || p.quantite || 0)
+            const pct = fmtPct(val, maxVal)
             return (
-              <div key={i} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '6px 0',
-                borderBottom: `1px solid ${B[50]}`,
-                fontSize: 12,
-              }}>
-                <span style={{
-                  padding: '2px 10px',
-                  borderRadius: 20,
-                  fontWeight: 700,
-                  fontSize: 11,
-                  minWidth: 44,
-                  textAlign: 'center',
-                  background: entree ? B[100] : '#f0f4f8',
-                  color: entree ? B[600] : '#334155',
-                  border: `1px solid ${entree ? B[200] : '#dce4ee'}`,
-                }}>
-                  {entree ? `+${m.quantite}` : `-${m.quantite}`}
-                </span>
-                <span style={{ flex: 1, color: '#334155' }}>
-                  {produit ? produit.nom : 'Produit supprimé'}
-                </span>
-                {m.note && <span style={{ color: '#94a3b8', fontSize: 11 }}>{m.note}</span>}
-                <span style={{ color: '#cbd5e1', fontSize: 11, flexShrink: 0 }}>
-                  {new Date(m.date).toLocaleDateString('fr-FR')}
-                </span>
+              <div key={p.id} style={{ marginBottom: i < top5.length - 1 ? 12 : 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: '#334155', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.designation || p.nom}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#1e40af' }}>
+                    {fmt(Math.round(val))} F
+                  </span>
+                </div>
+                <div style={{ height: 4, borderRadius: 2, background: '#f1f5f9', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: '#1976d2', borderRadius: 2, transition: 'width 0.4s ease' }} />
+                </div>
               </div>
             )
-          })
-        )}
+          })}
+        </div>
+
+        {/* Répartition par catégorie */}
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '18px 20px' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 12, fontWeight: 700, color: '#0f2847' }}>
+            Répartition · catégories
+          </p>
+          {repartition.length === 0 ? (
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Aucune catégorie.</p>
+          ) : repartition.map((cat, i) => {
+            const pct = fmtPct(cat.count, produits.length)
+            return (
+              <div key={cat.id} style={{ marginBottom: i < repartition.length - 1 ? 12 : 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: '#334155' }}>
+                    {cat.icone ? `${cat.icone} ` : ''}{cat.nom}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>
+                    {cat.count} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({pct}%)</span>
+                  </span>
+                </div>
+                <div style={{ height: 4, borderRadius: 2, background: '#f1f5f9', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: '#64b5f6', borderRadius: 2, transition: 'width 0.4s ease' }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
+
+      {/* Graphe mouvements */}
+      <div style={{ marginTop: 12 }}>
+        <GraphMouvements mouvements={mouvements} />
+      </div>
+
+      {/* Ruptures (conditionnel) */}
+      {ruptures.length > 0 && (
+        <div style={{ marginTop: 12, background: '#fff', border: '1px solid #fecaca', borderRadius: 10, padding: '16px 20px' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 700, color: '#dc2626' }}>
+            Ruptures de stock · {ruptures.length} produit{ruptures.length > 1 ? 's' : ''}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {ruptures.map(p => (
+              <span key={p.id} style={{
+                fontSize: 11, fontWeight: 600, color: '#dc2626',
+                background: '#fef2f2', border: '1px solid #fecaca',
+                padding: '3px 10px', borderRadius: 20,
+              }}>
+                {p.designation || p.nom}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -19,7 +19,7 @@ const FORM_VIDE = {
 }
 
 function Produits({ produits, mouvements, fournisseurs = [], categories: categoriesArg = [], droits }) {
-  const { donnees, ajouter, modifier, effacer } = produits
+  const { donnees, ajouter, modifier, effacer, sauvegarder: sauvegarderProduits } = produits
 
   const categories            = Array.isArray(categoriesArg) ? categoriesArg         : (categoriesArg.donnees    || [])
   const sauvegarderCategories = Array.isArray(categoriesArg) ? (() => {})             : (categoriesArg.sauvegarder || (() => {}))
@@ -132,8 +132,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
 
   // ── Vider tout le stock ───────────────────────────────────
   const viderToutLeStock = () => {
-    const updated = donnees.map(p => ({ ...p, stock: 0 }))
-    sauvegarder(updated)
+    sauvegarderProduits([])
     setConfirmViderStock(false)
   }
 
@@ -163,17 +162,17 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
       const fourn = fournisseurs.find(f => f.id === p.fournisseurId)
                  || fournisseurs.find(f => norm(f.nom) === norm(p.fournisseurNom))
       return {
-        'Référence':    p.reference    || '',
-        'Désignation':  p.designation  || '',
-        'RAL':          p.ral          || '',
-        'Catégorie':    cat?.nom       || p.categorie     || '',
-        'Série':        p.serie        || '',
-        'Unité':        p.unite        || '',
-        'Prix Unitaire':p.prixUnitaire || 0,
-        'Stock':        p.stock        || 0,
-        'Stock Min':    p.stockMin     || 5,
-        'Date Entrée':  p.dateEntree   || '',
-        'Fournisseur':  fourn?.nom     || p.fournisseurNom || '',
+        'Référence':       p.reference       || '',
+        'Désignation *':   p.designation     || '',
+        'Catégorie *':     cat?.nom          || p.categorie     || '',
+        'RAL / Couleur':   p.ral             || '',
+        'Série / Modèle':  p.serie           || '',
+        'Unité':           p.unite           || '',
+        'Prix Unitaire':   p.prixUnitaire    || 0,
+        'Stock':           p.stock           || 0,
+        'Stock Min':       p.stockMin        || 5,
+        'Date Entrée':     p.dateEntree      || '',
+        'Fournisseur':     fourn?.nom        || p.fournisseurNom || '',
       }
     })
     const ws = XLSX.utils.json_to_sheet(rows)
@@ -227,30 +226,48 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
             produitsActuels = raw ? JSON.parse(raw) : [...donnees]
           } catch { produitsActuels = [...donnees] }
 
+          // Helper : lit une colonne avec plusieurs variantes de nom possibles
+          const col = (l, ...cles) => {
+            for (const k of cles) { const v = l[k]; if (v !== undefined && v !== '') return v.toString().trim() }
+            return ''
+          }
+
+          // Helper : convertit une date Excel (numéro de série ou chaîne) en AAAA-MM-JJ
+          const parseDate = (val) => {
+            if (!val) return ''
+            if (typeof val === 'number') {
+              const d = new Date(Math.round((val - 25569) * 86400 * 1000))
+              return d.toISOString().slice(0, 10)
+            }
+            const s = val.toString().trim()
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+            return s
+          }
+
           let n = 0
           lignes.forEach(l => {
-            const desig = (l['Désignation'] || l['Designation'] || '').toString().trim()
+            const desig = col(l, 'Désignation *', 'Désignation', 'Designation *', 'Designation')
             if (!desig) return
-            const nomCat    = (l['Catégorie'] || l['Categorie'] || '').toString().trim()
+            const nomCat    = col(l, 'Catégorie *', 'Catégorie', 'Categorie *', 'Categorie')
             const catFinale = referentiel.find(c => norm(c.nom) === norm(nomCat))
-            const nomFourn  = (l['Fournisseur'] || '').toString().trim()
+            const nomFourn  = col(l, 'Fournisseur')
             const fourn     = fournisseurs.find(f => norm(f.nom) === norm(nomFourn))
-            const reference = (l['Référence'] || l['Reference'] || '').toString().trim()
+            const reference = col(l, 'Référence', 'Reference')
             const produitExistant = reference
               ? produitsActuels.find(p => norm(p.reference) === norm(reference)) : null
 
             const produitData = {
               reference,
               designation:    desig,
-              ral:            (l['RAL'] || '').toString().trim(),
+              ral:            col(l, 'RAL / Couleur', 'RAL', 'Ral'),
               categorieId:    catFinale?.id  || '',
               categorie:      catFinale?.nom || nomCat,
-              serie:          (l['Série'] || l['Serie'] || '').toString().trim(),
-              unite:          (l['Unité'] || l['Unite'] || '').toString().trim(),
-              prixUnitaire:   Number(l['Prix Unitaire']) || 0,
-              stock:          Number(l['Stock'])         || 0,
-              stockMin:       Number(l['Stock Min'])     || 5,
-              dateEntree:     (l['Date Entrée'] || l['Date Entree'] || '').toString().trim(),
+              serie:          col(l, 'Série / Modèle', 'Série', 'Serie / Modele', 'Serie'),
+              unite:          col(l, 'Unité', 'Unite'),
+              prixUnitaire:   Number(col(l, 'Prix Unitaire')) || 0,
+              stock:          Number(col(l, 'Stock'))         || 0,
+              stockMin:       Number(col(l, 'Stock Min'))     || 5,
+              dateEntree:     parseDate(col(l, 'Date Entrée', 'Date Entree')),
               fournisseurId:  fourn?.id  || '',
               fournisseurNom: fourn?.nom || nomFourn,
             }
@@ -265,7 +282,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
           })
 
           // Un seul appel pour tout le lot — évite les écrasements de state
-          sauvegarder(produitsActuels)
+          sauvegarderProduits(produitsActuels)
           alert(`${n} produit(s) importé(s) avec succès !`)
         }, 0)
       } catch (err) {
@@ -456,13 +473,21 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
 
             {/* En-tête modal */}
-            <div style={{ padding: '22px 28px 18px', borderBottom: '1.5px solid #f1f5f9' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-                {produitEdite ? 'Modification' : 'Création'}
+            <div style={{ padding: '22px 28px 18px', borderBottom: '1.5px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                  {produitEdite ? 'Modification' : 'Création'}
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f2847' }}>
+                  {produitEdite ? 'Modifier le produit' : 'Nouveau produit'}
+                </div>
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f2847' }}>
-                {produitEdite ? 'Modifier le produit' : 'Nouveau produit'}
-              </div>
+              <button
+                onClick={() => setModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, lineHeight: 1, padding: 4, borderRadius: 6 }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f2847' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8' }}
+              >✕</button>
             </div>
 
             <div style={{ padding: '20px 28px 28px' }}>
@@ -615,7 +640,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
               Vider tout le stock ?
             </h3>
             <p style={{ color: '#64748b', fontSize: 13, textAlign: 'center', marginBottom: 6 }}>
-              Le stock de <strong style={{ color: '#0f2847' }}>{donnees.length} produit(s)</strong> sera remis à <strong>0</strong>.
+              Les <strong style={{ color: '#0f2847' }}>{donnees.length} produit(s)</strong> du catalogue seront définitivement supprimés.
             </p>
             <p style={{ color: '#ef4444', fontSize: 12, textAlign: 'center', marginBottom: 24 }}>
               Cette action est irréversible.
