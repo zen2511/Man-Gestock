@@ -149,14 +149,29 @@ function Categories({ categories, produits }) {
  <div>
  <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>Produits ({prodsCat.length})</div>
  <div style={{ maxHeight: 180, overflowY: 'auto' }}>
- {prodsCat.map(p => (
- <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: `1px solid ${B[50]}`, fontSize: 12 }}>
- <span style={{ color: '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nom}</span>
- <span style={{ fontWeight: 600, fontSize: 11, marginLeft: 6, flexShrink: 0, color: p.quantite <= 0 ? '#64748b' : p.quantite <= p.quantiteMin ? B[500] : B[600] }}>
- {p.quantite}
+ {prodsCat.map(p => {
+ const stock = p.stock ?? 0
+ const stockMin = p.stockMin ?? 5
+ const couleur = stock <= 0 ? '#ef4444' : stock <= stockMin ? '#f97316' : B[600]
+ return (
+ <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${B[50]}`, fontSize: 12 }}>
+ <div style={{ flex: 1, minWidth: 0 }}>
+ <div style={{ color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+ {p.designation || p.nom || '—'}
+ </div>
+ {p.reference && <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>{p.reference}</div>}
+ </div>
+ <span style={{
+ fontWeight: 700, fontSize: 11, marginLeft: 8, flexShrink: 0,
+ padding: '1px 7px', borderRadius: 20,
+ background: couleur + '18', color: couleur,
+ border: `1px solid ${couleur}40`,
+ }}>
+ {stock <= 0 ? 'Rupture' : stock}
  </span>
  </div>
- ))}
+ )
+ })}
  </div>
  </div>
  )}

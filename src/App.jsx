@@ -75,7 +75,7 @@ function App() {
           produits={produits}
           mouvements={mouvements}
           fournisseurs={fournisseurs.donnees}
-          categories={categories.donnees}
+          categories={categories}
           droits={droits}
         />
       case 'categories':

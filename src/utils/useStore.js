@@ -16,8 +16,16 @@ export function useStore(cle, defaut = []) {
   }, [cle])
 
   const ajouter = useCallback((item) => {
-    setDonnees(prev => {
-      const updated = [...prev, item]
+    // Lire localStorage directement pour éviter le state stale
+    // quand ajouter() est appelé plusieurs fois en boucle rapide
+    // (React batchise les setState, prev ne serait pas à jour)
+    setDonnees(() => {
+      let current = []
+      try {
+        const raw = localStorage.getItem(cle)
+        current = raw ? JSON.parse(raw) : []
+      } catch { current = [] }
+      const updated = [...current, item]
       localStorage.setItem(cle, JSON.stringify(updated))
       return updated
     })
