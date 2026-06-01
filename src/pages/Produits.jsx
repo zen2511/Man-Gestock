@@ -132,7 +132,8 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
 
   // ── Vider tout le stock ───────────────────────────────────
   const viderToutLeStock = () => {
-    donnees.forEach(p => modifier(p.id, { ...p, stock: 0 }))
+    const updated = donnees.map(p => ({ ...p, stock: 0 }))
+    sauvegarder(updated)
     setConfirmViderStock(false)
   }
 
@@ -219,6 +220,13 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
         sauvegarderCategories(referentiel)
 
         setTimeout(() => {
+          // Lire depuis localStorage pour éviter le state stale en boucle
+          let produitsActuels = []
+          try {
+            const raw = localStorage.getItem('mansa_produits')
+            produitsActuels = raw ? JSON.parse(raw) : [...donnees]
+          } catch { produitsActuels = [...donnees] }
+
           let n = 0
           lignes.forEach(l => {
             const desig = (l['Désignation'] || l['Designation'] || '').toString().trim()
@@ -229,7 +237,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
             const fourn     = fournisseurs.find(f => norm(f.nom) === norm(nomFourn))
             const reference = (l['Référence'] || l['Reference'] || '').toString().trim()
             const produitExistant = reference
-              ? donnees.find(p => norm(p.reference) === norm(reference)) : null
+              ? produitsActuels.find(p => norm(p.reference) === norm(reference)) : null
 
             const produitData = {
               reference,
@@ -247,10 +255,17 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
               fournisseurNom: fourn?.nom || nomFourn,
             }
 
-            if (produitExistant) modifier(produitExistant.id, produitData)
-            else ajouter({ id: genId(), ...produitData, dateAjout: new Date().toISOString().slice(0, 10) })
+            if (produitExistant) {
+              const idx = produitsActuels.findIndex(p => p.id === produitExistant.id)
+              produitsActuels[idx] = { ...produitsActuels[idx], ...produitData }
+            } else {
+              produitsActuels.push({ id: genId(), ...produitData, dateAjout: new Date().toISOString().slice(0, 10) })
+            }
             n++
           })
+
+          // Un seul appel pour tout le lot — évite les écrasements de state
+          sauvegarder(produitsActuels)
           alert(`${n} produit(s) importé(s) avec succès !`)
         }, 0)
       } catch (err) {

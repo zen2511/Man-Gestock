@@ -80,8 +80,8 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
           lignes[idx].produitNom = prod.designation || prod.nom || ''
           lignes[idx].produitRef = prod.reference || ''
           lignes[idx].stockDispo = prod.stock ?? 0
-          // prixUnit reste ce que l'utilisateur a saisi (pas de prix dans les produits)
-          lignes[idx].total = lignes[idx].quantite * (lignes[idx].prixUnit || 0)
+          lignes[idx].prixUnit   = prod.prixUnitaire || 0
+          lignes[idx].total      = lignes[idx].quantite * (prod.prixUnitaire || 0)
         }
       }
       if (champ === 'quantite' || champ === 'prixUnit') {
