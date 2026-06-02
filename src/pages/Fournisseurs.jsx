@@ -97,6 +97,32 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
     setConfirmation(null)
   }
 
+  // ── Stats mensuelles fournisseurs (pour expert comptable) ──
+  const statsFournisseurs = (() => {
+    const debut = new Date(); debut.setDate(1); debut.setHours(0,0,0,0)
+
+    // Total produits référencés par fournisseur
+    const parFournisseur = donnees.map(f => {
+      const produitsFourn = produits.filter(p => p.fournisseurId === f.id || p.fournisseurNom === f.nom)
+      // Valeur stock des produits de ce fournisseur
+      const valeurStock = produitsFourn.reduce((s, p) => s + (p.prixUnitaire || 0) * (p.stock || 0), 0)
+      // Nombre de produits livrés (références)
+      const nbReferences = produitsFourn.length
+      return { ...f, valeurStock, nbReferences }
+    })
+
+    // Fournisseur principal (plus grande valeur de stock)
+    const fournisseurPrincipal = [...parFournisseur].sort((a, b) => b.valeurStock - a.valeurStock)[0] || null
+
+    // Nombre total de références fournisseurs actifs (ayant au moins 1 produit)
+    const nbActifs = parFournisseur.filter(f => f.nbReferences > 0).length
+
+    // Valeur totale du stock par fournisseur
+    const valeurTotaleParFourn = parFournisseur.reduce((s, f) => s + f.valeurStock, 0)
+
+    return { parFournisseur, fournisseurPrincipal, nbActifs, valeurTotaleParFourn }
+  })()
+
   // ── Export Excel ─────────────────────────────────────────
   const exporterExcel = () => {
     const rows = donnees.map(f => ({

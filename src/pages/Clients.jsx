@@ -46,6 +46,27 @@ function Clients({ clients }) {
   const [confirmation, setConfirmation] = useState(null)
   const [detail,       setDetail]       = useState(null)
 
+  // ── Stats mensuelles clients (pour expert comptable) ──────
+  const statsClients = (() => {
+    // Nombre total de clients
+    const total = donnees.length
+
+    // Clients ajoutés ce mois-ci
+    const debut = new Date(); debut.setDate(1); debut.setHours(0,0,0,0)
+    const nouveauxMois = donnees.filter(c => c.dateCreation && new Date(c.dateCreation) >= debut).length
+
+    // Clients avec email renseigné (joignables)
+    const avecEmail = donnees.filter(c => c.email && c.email.trim() !== '').length
+
+    // Clients avec téléphone renseigné
+    const avecTelephone = donnees.filter(c => c.telephone && c.telephone.trim() !== '').length
+
+    // Clients avec numéro d'affaire (clients actifs/contractuels)
+    const avecAffaire = donnees.filter(c => c.numeroAffaire && c.numeroAffaire.trim() !== '').length
+
+    return { total, nouveauxMois, avecEmail, avecTelephone, avecAffaire }
+  })()
+
   const liste = donnees.filter(c =>
     c.nom.toLowerCase().includes(recherche.toLowerCase()) ||
     (c.telephone || '').includes(recherche) ||

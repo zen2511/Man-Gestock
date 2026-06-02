@@ -73,6 +73,57 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
 
   const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n || 0)
 
+  // ── Stats mensuelles produits (pour expert comptable) ─────
+  const statsProduits = (() => {
+    const debut = new Date(); debut.setDate(1); debut.setHours(0,0,0,0)
+    const mvtsMois = (mouvements.donnees || []).filter(m => m.date && new Date(m.date) >= debut)
+
+    // Valeur totale du stock actuel
+    const valeurTotale = donnees.reduce((s, p) => s + (p.prixUnitaire || 0) * (p.stock || 0), 0)
+
+    // Valeur des entrées du mois
+    const valeurEntrees = mvtsMois
+      .filter(m => m.type === 'entree')
+      .reduce((s, m) => {
+        const p = donnees.find(p => p.id === m.produitId)
+        return s + (p?.prixUnitaire || 0) * (m.quantite || 0)
+      }, 0)
+
+    // Valeur des sorties du mois
+    const valeurSorties = mvtsMois
+      .filter(m => m.type === 'sortie')
+      .reduce((s, m) => {
+        const p = donnees.find(p => p.id === m.produitId)
+        return s + (p?.prixUnitaire || 0) * (m.quantite || 0)
+      }, 0)
+
+    // Produits les plus sortis du mois (top 5 par quantité sortie)
+    const sortiePar = {}
+    mvtsMois.filter(m => m.type === 'sortie').forEach(m => {
+      sortiePar[m.produitId] = (sortiePar[m.produitId] || 0) + (m.quantite || 0)
+    })
+    const topSorties = Object.entries(sortiePar)
+      .map(([id, qte]) => ({ produit: donnees.find(p => p.id === id), qte }))
+      .filter(x => x.produit)
+      .sort((a, b) => b.qte - a.qte)
+      .slice(0, 5)
+
+    // Variation de stock du mois (entrées − sorties en quantité)
+    const qteTotaleEntrees = mvtsMois.filter(m => m.type === 'entree').reduce((s, m) => s + (m.quantite || 0), 0)
+    const qteTotaleSorties = mvtsMois.filter(m => m.type === 'sortie').reduce((s, m) => s + (m.quantite || 0), 0)
+    const variationStock   = qteTotaleEntrees - qteTotaleSorties
+
+    // Produits sans mouvement ce mois (stock dormant)
+    const idsMouvementsMois = new Set(mvtsMois.map(m => m.produitId))
+    const produitsDormants  = donnees.filter(p => !idsMouvementsMois.has(p.id) && (p.stock || 0) > 0).length
+
+    return {
+      valeurTotale, valeurEntrees, valeurSorties,
+      qteTotaleEntrees, qteTotaleSorties, variationStock,
+      topSorties, produitsDormants,
+    }
+  })()
+
   // ── Filtrage ──────────────────────────────────────────────
   const produitsFiltres = donnees.filter(p => {
     const q = recherche.toLowerCase()

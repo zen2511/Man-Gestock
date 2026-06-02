@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getUsers, ajouterUser, modifierUser, supprimerUser, DROITS } from '../utils/auth'
+import { exporterRapportComptable } from '../utils/exportComptable'
 
 const CLE_TEINTES = 'mansa_teintes'
 const CLE_TAILLES = 'mansa_tailles'
@@ -79,8 +80,14 @@ style={{ ...S.input, flex: 1 }}
 }
 
 // ── Paramètres principal ─────────────────────────────────────
-export default function Parametres({ userActif }) {
+export default function Parametres({ userActif, produits = [], fournisseurs = [], clients = [], mouvements = [] }) {
 const [onglet, setOnglet] = useState('magasin')
+
+// ── État export comptable ──────────────────────────────────
+const [modalExport,    setModalExport]    = useState(false)
+const [typePeriode,    setTypePeriode]    = useState('mois')
+const [exportEnCours,  setExportEnCours]  = useState(false)
+const [dernierExport,  setDernierExport]  = useState(null)
 
 const [magasin, setMagasin] = useState(() => load(CLE_MAGASIN, {
 nom: 'MAN-SA – Menuiserie Aluminium & Verre',
@@ -96,6 +103,30 @@ const alerte = (msg) => { setNotifMsg(msg); setTimeout(() => setNotifMsg(''), 30
 const saveMagasin = () => {
 localStorage.setItem(CLE_MAGASIN, JSON.stringify(magasin))
 alerte('Informations sauvegardées.')
+}
+
+// ── Lancer l'export comptable ──────────────────────────────
+const lancerExport = () => {
+  setExportEnCours(true)
+  try {
+    const magasinInfo = magasin
+    const { nomFichier, periode } = exporterRapportComptable({
+      typePeriode,
+      produits:      Array.isArray(produits)     ? produits     : (produits.donnees     || []),
+      fournisseurs:  Array.isArray(fournisseurs) ? fournisseurs : (fournisseurs.donnees || []),
+      clients:       Array.isArray(clients)      ? clients      : (clients.donnees      || []),
+      mouvements:    Array.isArray(mouvements)   ? mouvements   : (mouvements.donnees   || []),
+      magasin:       magasinInfo,
+    })
+    setDernierExport({ nomFichier, periode, date: new Date().toLocaleString('fr-FR') })
+    alerte(`Rapport exporté : ${nomFichier}`)
+    setModalExport(false)
+  } catch (err) {
+    console.error(err)
+    alerte('Erreur lors de l\'export. Vérifiez la console.')
+  } finally {
+    setExportEnCours(false)
+  }
 }
 
 const [users, setUsers] = useState(() => getUsers())
@@ -132,6 +163,7 @@ const onglets = [
 { id: 'teintes', label: 'Teintes', visible: true },
 { id: 'tailles', label: 'Tailles', visible: true },
 { id: 'unites', label: 'Unités', visible: true },
+{ id: 'export', label: 'Export comptable', visible: true },
 { id: 'utilisateurs', label: 'Utilisateurs', visible: userActif?.role === 'admin' },
 { id: 'droits', label: 'Autorisations', visible: userActif?.role === 'admin' },
 ].filter(o => o.visible)
@@ -223,6 +255,93 @@ style={S.input}
 
 {onglet === 'unites' && (
 <TagManager titre="Unités de mesure" cle={CLE_UNITES} defaut={UNITES_DEFAUT} />
+)}
+
+{/* EXPORT COMPTABLE */}
+{onglet === 'export' && (
+<div style={S.section}>
+  <h3 style={S.sectionTitre}>Export rapport comptable</h3>
+  <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20, marginTop: 0, lineHeight: 1.6 }}>
+    Génère un fichier Excel complet à remettre à l'expert comptable, avec 6 feuilles :
+    Résumé général, Mouvements, État du stock, Fournisseurs, Clients, et Top produits.
+  </p>
+
+  {/* Sélection période */}
+  <div style={{ marginBottom: 20 }}>
+    <label style={S.label}>Période du rapport</label>
+    <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+      {[
+        { id: 'mois',      label: 'Mois en cours',      desc: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) },
+        { id: 'semestre',  label: 'Semestre en cours',  desc: new Date().getMonth() < 6 ? `Jan – Jun ${new Date().getFullYear()}` : `Jul – Déc ${new Date().getFullYear()}` },
+        { id: 'annee',     label: 'Année en cours',     desc: `Janvier – Décembre ${new Date().getFullYear()}` },
+      ].map(p => (
+        <div
+          key={p.id}
+          onClick={() => setTypePeriode(p.id)}
+          style={{
+            flex: 1, minWidth: 140,
+            border: `2px solid ${typePeriode === p.id ? B[600] : B[200]}`,
+            background: typePeriode === p.id ? B[50] : '#fff',
+            borderRadius: 8, padding: '14px 16px', cursor: 'pointer',
+            transition: 'all 0.12s',
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: typePeriode === p.id ? B[600] : B[900], marginBottom: 4 }}>
+            {p.label}
+          </div>
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.desc}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  {/* Ce que contiendra le fichier */}
+  <div style={{ background: B[50], borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${B[200]}` }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: B[700], marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+      Contenu du fichier Excel
+    </div>
+    {[
+      { num: '1', titre: 'Résumé général',   desc: 'Valeur du stock, mouvements, marge brute, alertes' },
+      { num: '2', titre: 'Mouvements',       desc: 'Toutes les entrées et sorties de la période' },
+      { num: '3', titre: 'État du stock',    desc: 'Inventaire complet avec valeurs et statuts' },
+      { num: '4', titre: 'Fournisseurs',     desc: 'Liste et valeur du stock par fournisseur' },
+      { num: '5', titre: 'Clients',          desc: 'Liste des clients et nouveaux sur la période' },
+      { num: '6', titre: 'Top produits',     desc: 'Produits les plus sortis, quantités et valeurs' },
+    ].map(f => (
+      <div key={f.num} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <span style={{
+          width: 22, height: 22, borderRadius: 5, flexShrink: 0,
+          background: B[600], color: '#fff',
+          fontSize: 11, fontWeight: 700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>{f.num}</span>
+        <span style={{ fontSize: 12, color: B[900], fontWeight: 600 }}>{f.titre}</span>
+        <span style={{ fontSize: 11, color: '#94a3b8' }}>— {f.desc}</span>
+      </div>
+    ))}
+  </div>
+
+  {/* Dernier export */}
+  {dernierExport && (
+    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#166534' }}>
+      Dernier export : <strong>{dernierExport.nomFichier}</strong> — {dernierExport.date}
+    </div>
+  )}
+
+  {/* Bouton export */}
+  <button
+    onClick={lancerExport}
+    disabled={exportEnCours}
+    style={{
+      ...S.btnPrimary,
+      fontSize: 14, padding: '11px 28px',
+      opacity: exportEnCours ? 0.7 : 1,
+      cursor: exportEnCours ? 'wait' : 'pointer',
+    }}
+  >
+    {exportEnCours ? 'Génération en cours...' : 'Générer le rapport Excel'}
+  </button>
+</div>
 )}
 
 {/* UTILISATEURS */}

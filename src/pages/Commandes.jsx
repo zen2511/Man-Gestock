@@ -46,6 +46,8 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
   const [confirmation, setConfirmation] = useState(null)
   const [rechercheP,   setRechercheP]   = useState('')
   const [filtreCatP,   setFiltreCatP]   = useState('')
+  const [modalExport,  setModalExport]  = useState(false)
+  const [periodeExport, setPeriodeExport] = useState('mois')
 
   const liste = donnees.filter(c => {
     const matchR = (c.reference || '').toLowerCase().includes(recherche.toLowerCase()) ||
@@ -192,6 +194,204 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
     if (detail?.id === cmd.id) setDetail({ ...detail, statut })
   }
 
+  // ── Calcul des statistiques pour l'expert-comptable ──────────────────────
+  const filtrerParPeriode = (liste, periode) => {
+    const now = new Date()
+    return liste.filter(c => {
+      const d = new Date(c.dateCommande)
+      if (periode === 'mois')     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      if (periode === 'semestre') {
+        const semNow = now.getMonth() < 6 ? 0 : 1
+        const semD   = d.getMonth()   < 6 ? 0 : 1
+        return semD === semNow && d.getFullYear() === now.getFullYear()
+      }
+      if (periode === 'annee')    return d.getFullYear() === now.getFullYear()
+      return true
+    })
+  }
+
+  const calculerStats = (periode) => {
+    const cmdsPeriode = filtrerParPeriode(donnees, periode)
+
+    // 1. Résumé global
+    const caLivre   = cmdsPeriode.filter(c => c.statut === 'livree').reduce((s, c) => s + (c.montantHT || 0), 0)
+    const caEnCours = cmdsPeriode.filter(c => c.statut === 'en_cours').reduce((s, c) => s + (c.montantHT || 0), 0)
+    const caAttendu = cmdsPeriode.filter(c => c.statut === 'en_attente').reduce((s, c) => s + (c.montantHT || 0), 0)
+    const nbLivree  = cmdsPeriode.filter(c => c.statut === 'livree').length
+    const nbEnCours = cmdsPeriode.filter(c => c.statut === 'en_cours').length
+    const nbAttente = cmdsPeriode.filter(c => c.statut === 'en_attente').length
+    const nbAnnulee = cmdsPeriode.filter(c => c.statut === 'annulee').length
+
+    // 2. CA par client (chantiers livrés)
+    const parClient = {}
+    cmdsPeriode.filter(c => c.statut === 'livree').forEach(c => {
+      if (!parClient[c.clientNom]) parClient[c.clientNom] = { client: c.clientNom, nbChantiers: 0, montantHT: 0 }
+      parClient[c.clientNom].nbChantiers += 1
+      parClient[c.clientNom].montantHT   += c.montantHT || 0
+    })
+    const statsClients = Object.values(parClient).sort((a, b) => b.montantHT - a.montantHT)
+
+    // 3. Consommation par produit (toutes lignes des chantiers livrés)
+    const parProduit = {}
+    cmdsPeriode.filter(c => c.statut === 'livree').forEach(c => {
+      ;(c.lignes || []).forEach(l => {
+        if (!l.produitNom) return
+        const k = l.produitNom
+        if (!parProduit[k]) parProduit[k] = { produit: k, reference: l.produitRef || '', quantite: 0, montantHT: 0 }
+        parProduit[k].quantite  += l.quantite || 0
+        parProduit[k].montantHT += l.total    || 0
+      })
+    })
+    const statsProduits = Object.values(parProduit).sort((a, b) => b.montantHT - a.montantHT)
+
+    // 4. Détail de toutes les commandes de la période
+    const detailCmds = cmdsPeriode.map(c => ({
+      reference:     c.reference   || '',
+      client:        c.clientNom   || '',
+      dateCommande:  c.dateCommande ? new Date(c.dateCommande).toLocaleDateString('fr-FR') : '',
+      dateLivraison: c.dateLivraison ? new Date(c.dateLivraison).toLocaleDateString('fr-FR') : '',
+      statut:        STATUTS[c.statut]?.label || c.statut,
+      montantHT:     c.montantHT   || 0,
+      note:          c.note        || '',
+    })).sort((a, b) => new Date(b.dateCommande) - new Date(a.dateCommande))
+
+    // 5. Détail lignes produits (toutes les lignes de tous les chantiers)
+    const detailLignes = []
+    cmdsPeriode.forEach(c => {
+      ;(c.lignes || []).forEach(l => {
+        detailLignes.push({
+          chantier:      c.reference   || '',
+          client:        c.clientNom   || '',
+          statut:        STATUTS[c.statut]?.label || c.statut,
+          dateCommande:  c.dateCommande ? new Date(c.dateCommande).toLocaleDateString('fr-FR') : '',
+          produit:       l.produitNom  || '',
+          reference:     l.produitRef  || '',
+          quantite:      l.quantite    || 0,
+          prixUnit:      l.prixUnit    || 0,
+          montantHT:     l.total       || 0,
+        })
+      })
+    })
+
+    // 6. Encours (chantiers non livrés, non annulés)
+    const encours = cmdsPeriode
+      .filter(c => c.statut === 'en_cours' || c.statut === 'en_attente')
+      .map(c => ({
+        reference:    c.reference   || '',
+        client:       c.clientNom   || '',
+        statut:       STATUTS[c.statut]?.label || c.statut,
+        dateCommande: c.dateCommande ? new Date(c.dateCommande).toLocaleDateString('fr-FR') : '',
+        dateLivraison:c.dateLivraison ? new Date(c.dateLivraison).toLocaleDateString('fr-FR') : '',
+        montantHT:    c.montantHT   || 0,
+        note:         c.note        || '',
+      }))
+
+    return { caLivre, caEnCours, caAttendu, nbLivre: nbLivree, nbEnCours, nbAttente, nbAnnulee, statsClients, statsProduits, detailCmds, detailLignes, encours, nbTotal: cmdsPeriode.length }
+  }
+
+  // ── Export Excel multi-feuilles via SheetJS ───────────────────────────────
+  const exporterExcel = async (periode) => {
+    // Import SheetJS dynamiquement
+    let XLSX
+    try {
+      XLSX = (await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js')).default
+      if (!XLSX) throw new Error()
+    } catch {
+      // Fallback: SheetJS via CDN classique
+      if (!window.XLSX) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js'
+          s.onload = res; s.onerror = rej
+          document.head.appendChild(s)
+        })
+      }
+      XLSX = window.XLSX
+    }
+
+    const stats = calculerStats(periode)
+    const now   = new Date()
+    const labelPeriode = periode === 'mois'
+      ? `${now.toLocaleString('fr-FR', { month: 'long' })} ${now.getFullYear()}`
+      : periode === 'semestre'
+        ? `S${now.getMonth() < 6 ? '1' : '2'} ${now.getFullYear()}`
+        : `Année ${now.getFullYear()}`
+
+    const wb = XLSX.utils.book_new()
+
+    // ── Feuille 1 : Résumé ──
+    const resumeData = [
+      ['RAPPORT COMPTABLE — ' + labelPeriode.toUpperCase()],
+      ['Généré le', new Date().toLocaleString('fr-FR')],
+      [],
+      ['INDICATEURS CLÉS', ''],
+      ['CA livré (FCFA)',             stats.caLivre],
+      ['Encours en cours (FCFA)',     stats.caEnCours],
+      ['Encours en attente (FCFA)',   stats.caAttendu],
+      ['Total chantiers (période)',   stats.nbTotal],
+      ['Chantiers livrés',            stats.nbLivre],
+      ['Chantiers en cours',          stats.nbEnCours],
+      ['Chantiers en attente',        stats.nbAttente],
+      ['Chantiers annulés',           stats.nbAnnulee],
+      [],
+      ['Panier moyen (chantiers livrés)', stats.nbLivre > 0 ? Math.round(stats.caLivre / stats.nbLivre) : 0],
+    ]
+    const wsResume = XLSX.utils.aoa_to_sheet(resumeData)
+    wsResume['!cols'] = [{ wch: 34 }, { wch: 22 }]
+    XLSX.utils.book_append_sheet(wb, wsResume, 'Résumé')
+
+    // ── Feuille 2 : CA par client ──
+    const clientHeader = [['Client', 'Nb chantiers livrés', 'Montant HT (FCFA)', '% du CA']]
+    const clientRows = stats.statsClients.map(r => [
+      r.client, r.nbChantiers, r.montantHT,
+      stats.caLivre > 0 ? parseFloat(((r.montantHT / stats.caLivre) * 100).toFixed(1)) : 0
+    ])
+    const clientTotaux = [['TOTAL', stats.nbLivre, stats.caLivre, 100]]
+    const wsClients = XLSX.utils.aoa_to_sheet([...clientHeader, ...clientRows, [], ...clientTotaux])
+    wsClients['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 22 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(wb, wsClients, 'CA par client')
+
+    // ── Feuille 3 : Consommation produits ──
+    const prodHeader = [['Désignation', 'Référence', 'Qté totale sortie', 'Montant HT (FCFA)', '% du CA']]
+    const prodRows = stats.statsProduits.map(r => [
+      r.produit, r.reference, r.quantite, r.montantHT,
+      stats.caLivre > 0 ? parseFloat(((r.montantHT / stats.caLivre) * 100).toFixed(1)) : 0
+    ])
+    const totalProd = stats.statsProduits.reduce((s, r) => s + r.montantHT, 0)
+    const prodTotaux = [['TOTAL', '', stats.statsProduits.reduce((s, r) => s + r.quantite, 0), totalProd, '']]
+    const wsProduits = XLSX.utils.aoa_to_sheet([...prodHeader, ...prodRows, [], ...prodTotaux])
+    wsProduits['!cols'] = [{ wch: 32 }, { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(wb, wsProduits, 'Consommation produits')
+
+    // ── Feuille 4 : Détail chantiers ──
+    const cmdHeader = [['Référence', 'Client', 'Date début', 'Date livraison', 'Statut', 'Montant HT (FCFA)', 'Note']]
+    const cmdRows = stats.detailCmds.map(r => [r.reference, r.client, r.dateCommande, r.dateLivraison, r.statut, r.montantHT, r.note])
+    const wsCmds = XLSX.utils.aoa_to_sheet([...cmdHeader, ...cmdRows])
+    wsCmds['!cols'] = [{ wch: 18 }, { wch: 26 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 20 }, { wch: 36 }]
+    XLSX.utils.book_append_sheet(wb, wsCmds, 'Détail chantiers')
+
+    // ── Feuille 5 : Détail lignes produits ──
+    const ligHeader = [['Chantier', 'Client', 'Statut', 'Date', 'Produit', 'Référence', 'Quantité', 'Prix unit. (FCFA)', 'Total HT (FCFA)']]
+    const ligRows = stats.detailLignes.map(r => [r.chantier, r.client, r.statut, r.dateCommande, r.produit, r.reference, r.quantite, r.prixUnit, r.montantHT])
+    const wsLignes = XLSX.utils.aoa_to_sheet([...ligHeader, ...ligRows])
+    wsLignes['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 13 }, { wch: 13 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 20 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, wsLignes, 'Lignes produits')
+
+    // ── Feuille 6 : Encours ──
+    const encoursHeader = [['Référence', 'Client', 'Statut', 'Date début', 'Livraison prévue', 'Montant HT (FCFA)', 'Note']]
+    const encoursRows = stats.encours.map(r => [r.reference, r.client, r.statut, r.dateCommande, r.dateLivraison, r.montantHT, r.note])
+    const totalEncours = stats.encours.reduce((s, r) => s + r.montantHT, 0)
+    const encoursTotaux = [['TOTAL ENCOURS', '', '', '', '', totalEncours, '']]
+    const wsEncours = XLSX.utils.aoa_to_sheet([...encoursHeader, ...encoursRows, [], ...encoursTotaux])
+    wsEncours['!cols'] = [{ wch: 18 }, { wch: 26 }, { wch: 13 }, { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 36 }]
+    XLSX.utils.book_append_sheet(wb, wsEncours, 'Encours')
+
+    // ── Téléchargement ──
+    const nomFichier = `rapport-comptable-${labelPeriode.replace(/\s+/g, '-').toLowerCase()}.xlsx`
+    XLSX.writeFile(wb, nomFichier)
+    setModalExport(false)
+  }
+
   return (
     <div style={{ display: 'flex', gap: 20 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -204,7 +404,10 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
             <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>Suivi des chantiers clients</p>
           </div>
           {droits?.modifier !== false && (
-            <button onClick={ouvrirAjout} style={sBtn}>+ Nouveau</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setModalExport(true)} style={{ ...sBtnSec, display: 'flex', alignItems: 'center', gap: 5 }}>📊 Exporter</button>
+              <button onClick={ouvrirAjout} style={sBtn}>+ Nouveau</button>
+            </div>
           )}
         </div>
 
@@ -572,6 +775,66 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
               <button onClick={() => setModal(false)} style={sBtnSec}>Annuler</button>
               <button onClick={sauvegarder} style={{ ...sBtn, opacity: !form.clientId ? 0.5 : 1 }}>
                 {cmdEditee ? '💾 Enregistrer' : '✅ Créer le chantier'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal export comptable */}
+      {modalExport && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '28px 30px', width: '100%', maxWidth: 400, boxShadow: '0 8px 40px rgba(10,25,41,0.18)' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: B[900], marginTop: 0, marginBottom: 6 }}>📊 Export rapport comptable</h3>
+            <p style={{ color: '#64748b', fontSize: 12, marginBottom: 20 }}>
+              Génère un fichier Excel avec : résumé, CA par client, consommation produits, détail chantiers, lignes produits et encours.
+            </p>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Période à exporter</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { val: 'mois',     label: '📅 Mois en cours',    desc: 'Statistiques du mois actuel' },
+                  { val: 'semestre', label: '📆 Semestre en cours', desc: 'S1 (jan–juin) ou S2 (juil–déc)' },
+                  { val: 'annee',    label: '🗓️ Année en cours',   desc: `Toute l'année ${new Date().getFullYear()}` },
+                ].map(opt => (
+                  <div key={opt.val}
+                    onClick={() => setPeriodeExport(opt.val)}
+                    style={{
+                      border: `1.5px solid ${periodeExport === opt.val ? B[500] : B[200]}`,
+                      background: periodeExport === opt.val ? B[50] : '#fff',
+                      borderRadius: 8, padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10
+                    }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${periodeExport === opt.val ? B[500] : B[300]}`, background: periodeExport === opt.val ? B[500] : '#fff', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: B[900] }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{opt.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Aperçu des stats */}
+            {(() => {
+              const s = calculerStats(periodeExport)
+              return (
+                <div style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, color: B[700], marginBottom: 6 }}>Aperçu</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, color: '#475569' }}>
+                    <span>Chantiers :</span><span style={{ fontWeight: 600, color: B[900] }}>{s.nbTotal}</span>
+                    <span>CA livré :</span><span style={{ fontWeight: 600, color: B[900] }}>{fmt(s.caLivre)} FCFA</span>
+                    <span>Encours :</span><span style={{ fontWeight: 600, color: B[600] }}>{fmt(s.caEnCours + s.caAttendu)} FCFA</span>
+                    <span>Clients :</span><span style={{ fontWeight: 600, color: B[900] }}>{s.statsClients.length}</span>
+                  </div>
+                </div>
+              )
+            })()}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setModalExport(false)} style={sBtnSec}>Annuler</button>
+              <button onClick={() => exporterExcel(periodeExport)} style={{ ...sBtn, background: B[700] }}>
+                ⬇ Télécharger Excel
               </button>
             </div>
           </div>

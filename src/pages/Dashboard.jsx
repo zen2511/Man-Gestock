@@ -111,6 +111,61 @@ function GraphMouvements({ mouvements }) {
   )
 }
 
+// ── Helpers stats mensuelles ────────────────────────────────────────────────
+function getDebutMois() {
+  const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d
+}
+
+function statsStock(produits, mouvements) {
+  const debut = getDebutMois()
+
+  // Mouvements du mois en cours
+  const mvtsMois = mouvements.filter(m => m.date && new Date(m.date) >= debut)
+
+  // Valeur totale du stock actuel
+  const valeurStockActuel = produits.reduce(
+    (s, p) => s + (p.prixUnitaire || 0) * (p.stock || 0), 0
+  )
+
+  // Valeur des entrées du mois (qté × prix unitaire du produit)
+  const valeurEntreesMois = mvtsMois
+    .filter(m => m.type === 'entree')
+    .reduce((s, m) => {
+      const p = produits.find(p => p.id === m.produitId)
+      return s + (p?.prixUnitaire || 0) * (m.quantite || 0)
+    }, 0)
+
+  // Valeur des sorties du mois
+  const valeurSortiesMois = mvtsMois
+    .filter(m => m.type === 'sortie')
+    .reduce((s, m) => {
+      const p = produits.find(p => p.id === m.produitId)
+      return s + (p?.prixUnitaire || 0) * (m.quantite || 0)
+    }, 0)
+
+  // Nombre total de mouvements du mois
+  const nbMouvementsMois = mvtsMois.length
+
+  // Produits en rupture et en stock faible
+  const produitsRupture = produits.filter(p => (p.stock || 0) <= 0)
+  const produitsFaibles = produits.filter(p => {
+    const q = p.stock || 0; return q > 0 && q <= (p.stockMin || 5)
+  })
+
+  // Marge brute estimée du mois (sorties − coût d'achat des entrées)
+  const margeBrute = valeurSortiesMois - valeurEntreesMois
+
+  return {
+    valeurStockActuel,
+    valeurEntreesMois,
+    valeurSortiesMois,
+    nbMouvementsMois,
+    produitsRupture,
+    produitsFaibles,
+    margeBrute,
+  }
+}
+
 function Dashboard({ produits = [], categories = [], mouvements = [], setPageActive }) {
   const valeurStock   = produits.reduce((s, p) => s + (p.prixUnitaire || p.prix || 0) * (p.stock || p.quantite || 0), 0)
   const totalArticles = produits.reduce((s, p) => s + (p.stock || p.quantite || 0), 0)
@@ -119,6 +174,9 @@ function Dashboard({ produits = [], categories = [], mouvements = [], setPageAct
     const q = p.stock ?? p.quantite ?? 0
     return q > 0 && q <= (p.stockMin || 5)
   })
+
+  // Stats mensuelles pour l'expert comptable
+  const statsMois = statsStock(produits, mouvements)
 
   const repartition = categories
     .map(cat => ({
@@ -290,6 +348,43 @@ function Dashboard({ produits = [], categories = [], mouvements = [], setPageAct
       {/* Graphe mouvements */}
       <div style={{ marginTop: 12 }}>
         <GraphMouvements mouvements={mouvements} />
+      </div>
+
+      {/* ── Rapport mensuel expert comptable ── */}
+      <div style={{ marginTop: 12, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '18px 20px' }}>
+        <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, color: '#0f2847' }}>
+          Rapport du mois · {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ background: '#f0f7ff', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Valeur stock actuel</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1565c0' }}>{fmt(Math.round(statsMois.valeurStockActuel))} F</p>
+          </div>
+          <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Entrées du mois</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#16a34a' }}>{fmt(Math.round(statsMois.valeurEntreesMois))} F</p>
+          </div>
+          <div style={{ background: '#fff7ed', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sorties du mois</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#c2410c' }}>{fmt(Math.round(statsMois.valeurSortiesMois))} F</p>
+          </div>
+          <div style={{ background: statsMois.margeBrute >= 0 ? '#f0fdf4' : '#fff5f5', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Marge brute estimée</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: statsMois.margeBrute >= 0 ? '#16a34a' : '#dc2626' }}>
+              {statsMois.margeBrute >= 0 ? '+' : ''}{fmt(Math.round(statsMois.margeBrute))} F
+            </p>
+          </div>
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Mouvements du mois</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f2847' }}>{statsMois.nbMouvementsMois}</p>
+          </div>
+          <div style={{ background: statsMois.produitsRupture.length > 0 ? '#fff5f5' : '#f8fafc', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ruptures / Faibles</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: statsMois.produitsRupture.length > 0 ? '#dc2626' : '#64748b' }}>
+              {statsMois.produitsRupture.length} / {statsMois.produitsFaibles.length}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Ruptures (conditionnel) */}
