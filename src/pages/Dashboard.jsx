@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 const fmt    = n  => new Intl.NumberFormat('fr-FR').format(n || 0)
 const fmtPct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0
 
@@ -167,6 +169,7 @@ function statsStock(produits, mouvements) {
 }
 
 function Dashboard({ produits = [], categories = [], mouvements = [], setPageActive }) {
+  const [modalRuptures, setModalRuptures] = useState(false)
   const valeurStock   = produits.reduce((s, p) => s + (p.prixUnitaire || p.prix || 0) * (p.stock || p.quantite || 0), 0)
   const totalArticles = produits.reduce((s, p) => s + (p.stock || p.quantite || 0), 0)
   const ruptures      = produits.filter(p => (p.stock || p.quantite || 0) <= 0)
@@ -261,12 +264,19 @@ function Dashboard({ produits = [], categories = [], mouvements = [], setPageAct
         </div>
 
         {/* Alertes */}
-        <div style={{
-          background: ruptures.length > 0 ? '#fff5f5' : '#fff',
-          border: `1px solid ${ruptures.length > 0 ? '#fecaca' : '#e2e8f0'}`,
-          borderRadius: 10,
-          padding: '20px 22px',
-        }}>
+        <div
+          onClick={() => ruptures.length > 0 || faibles.length > 0 ? setModalRuptures(true) : null}
+          style={{
+            background: ruptures.length > 0 ? '#fff5f5' : '#fff',
+            border: `1px solid ${ruptures.length > 0 ? '#fecaca' : '#e2e8f0'}`,
+            borderRadius: 10,
+            padding: '20px 22px',
+            cursor: ruptures.length > 0 || faibles.length > 0 ? 'pointer' : 'default',
+            transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={e => { if (ruptures.length > 0 || faibles.length > 0) e.currentTarget.style.borderColor = ruptures.length > 0 ? '#f87171' : '#93c5fd' }}
+          onMouseLeave={e => e.currentTarget.style.borderColor = ruptures.length > 0 ? '#fecaca' : '#e2e8f0'}
+        >
           <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#94a3b8', textTransform: 'uppercase' }}>
             Alertes stock
           </p>
@@ -405,6 +415,119 @@ function Dashboard({ produits = [], categories = [], mouvements = [], setPageAct
             ))}
           </div>
         </div>
+      )}
+
+      {/* ── Modal détail ruptures ── */}
+      {modalRuptures && (
+        <>
+          <div onClick={() => setModalRuptures(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.45)', zIndex: 200 }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+            zIndex: 201, background: '#fff', borderRadius: 12,
+            width: '90%', maxWidth: 480, maxHeight: '82vh',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 12px 50px rgba(10,25,41,0.22)',
+            border: '1px solid #fecaca',
+          }}>
+            {/* En-tête */}
+            <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid #fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#7f1d1d' }}>🔔 Alertes stock</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                  {ruptures.length} rupture{ruptures.length > 1 ? 's' : ''}
+                  {faibles.length > 0 && ` · ${faibles.length} stock${faibles.length > 1 ? 's' : ''} faible${faibles.length > 1 ? 's' : ''}`}
+                </div>
+              </div>
+              <button onClick={() => setModalRuptures(false)}
+                style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '4px 9px', cursor: 'pointer', color: '#dc2626', fontSize: 16, lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Corps */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '12px 16px' }}>
+
+              {ruptures.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 8 }}>
+                    En rupture ({ruptures.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {ruptures.map(p => (
+                      <div key={p.id} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.designation || p.nom}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+                              {p.reference && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>Réf : {p.reference}</span>}
+                              {(p.categorie || p.categorieNom) && <span style={{ fontSize: 10, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px' }}>{p.categorie || p.categorieNom}</span>}
+                              {p.ral && <span style={{ fontSize: 10, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>RAL {p.ral}</span>}
+                              {p.serie && <span style={{ fontSize: 10, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>{p.serie}</span>}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: '#dc2626', lineHeight: 1 }}>0</div>
+                            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>en stock</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 14, marginTop: 8, paddingTop: 8, borderTop: '1px solid #fee2e2' }}>
+                          {p.prixUnitaire != null && <span style={{ fontSize: 11, color: '#475569' }}>Prix : <strong style={{ color: '#0f172a' }}>{new Intl.NumberFormat('fr-FR').format(p.prixUnitaire)} FCFA</strong></span>}
+                          {p.stockMin != null && <span style={{ fontSize: 11, color: '#475569' }}>Stock min : <strong style={{ color: '#dc2626' }}>{p.stockMin}</strong></span>}
+                          {p.fournisseur && <span style={{ fontSize: 11, color: '#475569' }}>Fourn. : <strong>{p.fournisseur}</strong></span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {faibles.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 8 }}>
+                    Stock faible ({faibles.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {faibles.map(p => {
+                      const q = p.stock ?? p.quantite ?? 0
+                      const min = p.stockMin || 5
+                      const pct = Math.round((q / min) * 100)
+                      return (
+                        <div key={p.id} style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.designation || p.nom}</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+                                {p.reference && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>Réf : {p.reference}</span>}
+                                {(p.categorie || p.categorieNom) && <span style={{ fontSize: 10, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px' }}>{p.categorie || p.categorieNom}</span>}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: 18, fontWeight: 800, color: '#f97316', lineHeight: 1 }}>{q}</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>min : {min}</div>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 8, height: 4, borderRadius: 2, background: '#fed7aa', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: '#f97316', borderRadius: 2 }} />
+                          </div>
+                          <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 2, textAlign: 'right' }}>{pct}% du seuil minimum</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pied */}
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #fee2e2', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setModalRuptures(false); setPageActive('produits') }}
+                style={{ padding: '7px 16px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Gérer les produits →
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

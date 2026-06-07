@@ -498,14 +498,14 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
                       <div style={{ display: 'flex', gap: 5 }}>
                         {droits?.modifierProduits !== false && (
                           <button onClick={() => ouvrirEdition(p)}
-                            style={{ padding: '5px 11px', borderRadius: 6, border: 'none', background: '#dbeafe', color: '#2563eb', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                            Modifier
+                            style={{ padding: '5px 11px', borderRadius: 6, border: 'none', background: '#dbeafe', color: '#2563eb', cursor: 'pointer', fontSize: 14 }}>
+                            ✏️
                           </button>
                         )}
                         {droits?.supprimerDonnees !== false && (
                           <button onClick={() => supprimerProduit(p.id)}
-                            style={{ padding: '5px 11px', borderRadius: 6, border: 'none', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                            Suppr.
+                            style={{ padding: '5px 11px', borderRadius: 6, border: 'none', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: 14 }}>
+                            🗑️
                           </button>
                         )}
                       </div>

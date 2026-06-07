@@ -40,8 +40,15 @@ const IconHome = () => (
   </svg>
 )
 
-function Header({ pageActive, alertes, setPageActive, userActif, onLoginClick, onLogout }) {
-  const [menuOuvert, setMenuOuvert] = useState(false)
+function Header({ pageActive, alertes, setPageActive, userActif, onLoginClick, onLogout, produits = [] }) {
+  const [menuOuvert,     setMenuOuvert]     = useState(false)
+  const [modalRuptures,  setModalRuptures]  = useState(false)
+
+  const produitsRupture = produits.filter(p => (p.stock ?? p.quantite ?? 0) <= 0)
+  const produitsFaibles = produits.filter(p => {
+    const q = p.stock ?? p.quantite ?? 0
+    return q > 0 && q <= (p.stockMin || 5)
+  })
   const estVisiteur = !userActif || userActif.role === 'visiteur'
   const droitLabel  = DROITS[userActif?.role]?.label ?? 'Visiteur'
   const page        = PAGES[pageActive] || PAGES.dashboard
@@ -115,7 +122,7 @@ function Header({ pageActive, alertes, setPageActive, userActif, onLoginClick, o
 
         {/* Bouton alertes */}
         <button
-          onClick={() => setPageActive('produits')}
+          onClick={() => alertes > 0 ? setModalRuptures(true) : setPageActive('produits')}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '5px 12px 5px 10px',
@@ -276,6 +283,170 @@ function Header({ pageActive, alertes, setPageActive, userActif, onLoginClick, o
           </div>
         )}
       </div>
+      {/* ── Modal détail ruptures ── */}
+      {modalRuptures && (
+        <>
+          <div
+            onClick={() => setModalRuptures(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.45)', zIndex: 200 }}
+          />
+          <div style={{
+            position: 'fixed', top: 64, right: 20, zIndex: 201,
+            background: '#fff', borderRadius: 12, width: 420, maxHeight: '80vh',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 8px 40px rgba(10,25,41,0.18)',
+            border: '1px solid #fecaca',
+            animation: 'fadeDown 0.15s ease',
+          }}>
+            <style>{`@keyframes fadeDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+            {/* En-tête */}
+            <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid #fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#7f1d1d', display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <IconBell size={15} />
+                  Alertes stock
+                </div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                  {produitsRupture.length} rupture{produitsRupture.length > 1 ? 's' : ''}
+                  {produitsFaibles.length > 0 && ` · ${produitsFaibles.length} stock${produitsFaibles.length > 1 ? 's' : ''} faible${produitsFaibles.length > 1 ? 's' : ''}`}
+                </div>
+              </div>
+              <button onClick={() => setModalRuptures(false)}
+                style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '4px 9px', cursor: 'pointer', color: '#dc2626', fontSize: 16, lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Corps scrollable */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '10px 14px' }}>
+
+              {/* Ruptures */}
+              {produitsRupture.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ display: 'inline-block', width: 12, height: 2, background: '#dc2626' }} />
+                    En rupture ({produitsRupture.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {produitsRupture.map(p => (
+                      <div key={p.id} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.designation || p.nom}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                              {p.reference && (
+                                <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>
+                                  Réf : {p.reference}
+                                </span>
+                              )}
+                              {(p.categorie || p.categorieNom) && (
+                                <span style={{ fontSize: 10, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px' }}>
+                                  {p.categorie || p.categorieNom}
+                                </span>
+                              )}
+                              {p.ral && (
+                                <span style={{ fontSize: 10, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>
+                                  RAL {p.ral}
+                                </span>
+                              )}
+                              {p.serie && (
+                                <span style={{ fontSize: 10, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>
+                                  {p.serie}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#dc2626', lineHeight: 1 }}>0</div>
+                            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>en stock</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 14, marginTop: 8, paddingTop: 8, borderTop: '1px solid #fee2e2' }}>
+                          {p.prixUnitaire != null && (
+                            <span style={{ fontSize: 11, color: '#475569' }}>
+                              Prix : <strong style={{ color: '#0f172a' }}>{new Intl.NumberFormat('fr-FR').format(p.prixUnitaire)} FCFA</strong>
+                            </span>
+                          )}
+                          {p.stockMin != null && (
+                            <span style={{ fontSize: 11, color: '#475569' }}>
+                              Stock min : <strong style={{ color: '#dc2626' }}>{p.stockMin}</strong>
+                            </span>
+                          )}
+                          {p.fournisseur && (
+                            <span style={{ fontSize: 11, color: '#475569' }}>
+                              Fourn. : <strong style={{ color: '#0f172a' }}>{p.fournisseur}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Stocks faibles */}
+              {produitsFaibles.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ display: 'inline-block', width: 12, height: 2, background: '#f97316' }} />
+                    Stock faible ({produitsFaibles.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {produitsFaibles.map(p => {
+                      const q = p.stock ?? p.quantite ?? 0
+                      const min = p.stockMin || 5
+                      const pct = Math.round((q / min) * 100)
+                      return (
+                        <div key={p.id} style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.designation || p.nom}
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                                {p.reference && (
+                                  <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 6px' }}>
+                                    Réf : {p.reference}
+                                  </span>
+                                )}
+                                {(p.categorie || p.categorieNom) && (
+                                  <span style={{ fontSize: 10, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px' }}>
+                                    {p.categorie || p.categorieNom}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: 16, fontWeight: 800, color: '#f97316', lineHeight: 1 }}>{q}</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>min : {min}</div>
+                            </div>
+                          </div>
+                          {/* Barre de niveau */}
+                          <div style={{ marginTop: 8, height: 4, borderRadius: 2, background: '#fed7aa', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: '#f97316', borderRadius: 2 }} />
+                          </div>
+                          <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 3, textAlign: 'right' }}>{pct}% du seuil minimum</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Pied */}
+            <div style={{ padding: '12px 14px', borderTop: '1px solid #fee2e2', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setModalRuptures(false); setPageActive('produits') }}
+                style={{ padding: '7px 16px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Gérer les produits →
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

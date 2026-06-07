@@ -48,6 +48,8 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
   const [filtreCatP,   setFiltreCatP]   = useState('')
   const [modalExport,  setModalExport]  = useState(false)
   const [periodeExport, setPeriodeExport] = useState('mois')
+  const [modalProduits, setModalProduits] = useState(false)
+  const [selection,    setSelection]    = useState({}) // { produitId: quantite }
 
   const liste = donnees.filter(c => {
     const matchR = (c.reference || '').toLowerCase().includes(recherche.toLowerCase()) ||
@@ -94,6 +96,49 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
   }
 
   const supprimerLigne = (idx) => setForm(f => ({ ...f, lignes: f.lignes.filter((_, i) => i !== idx) }))
+
+  const ouvrirModalProduits = () => {
+    // Pré-remplir la sélection avec les produits déjà dans la commande
+    const sel = {}
+    ;(form.lignes || []).forEach(l => {
+      if (l.produitId) sel[l.produitId] = l.quantite || 1
+    })
+    setSelection(sel)
+    setRechercheP('')
+    setFiltreCatP('')
+    setModalProduits(true)
+  }
+
+  const toggleProduit = (prodId) => {
+    setSelection(s => {
+      if (s[prodId]) {
+        const n = { ...s }; delete n[prodId]; return n
+      }
+      return { ...s, [prodId]: 1 }
+    })
+  }
+
+  const confirmerSelection = () => {
+    const lignesExistantes = (form.lignes || []).filter(l => !l.produitId || !selection.hasOwnProperty(l.produitId) === false ? selection.hasOwnProperty(l.produitId) : false)
+    // Reconstruire les lignes à partir de la sélection
+    const nouvellesLignes = Object.entries(selection).map(([prodId, qte]) => {
+      const prod = produits.find(p => p.id === prodId)
+      // Chercher si ligne existante pour conserver le prix unitaire modifié
+      const ligneExist = (form.lignes || []).find(l => l.produitId === prodId)
+      const prixUnit = ligneExist?.prixUnit ?? (prod?.prixUnitaire || 0)
+      return {
+        produitId:  prodId,
+        produitNom: prod?.designation || prod?.nom || '',
+        produitRef: prod?.reference || '',
+        stockDispo: prod?.stock ?? 0,
+        quantite:   qte,
+        prixUnit,
+        total:      qte * prixUnit,
+      }
+    })
+    setForm(f => ({ ...f, lignes: nouvellesLignes }))
+    setModalProduits(false)
+  }
 
   const montantTotal = (lignes) => (lignes || []).reduce((s, l) => s + (l.total || 0), 0)
 
@@ -648,37 +693,11 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                   4. Produits / Matériaux sortis
                 </div>
 
-                {/* Barre de recherche + filtre catégorie */}
-                <div style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8 }}>🔍 Filtrer les produits disponibles</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div>
-                      <label style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 3 }}>Recherche par désignation / référence / RAL</label>
-                      <input
-                        value={rechercheP}
-                        onChange={e => setRechercheP(e.target.value)}
-                        placeholder="Ex: aluminium, ALU-50, RAL 9016..."
-                        style={{ ...sInput, marginBottom: 0, fontSize: 12 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 3 }}>Filtrer par catégorie</label>
-                      <select value={filtreCatP} onChange={e => setFiltreCatP(e.target.value)} style={{ ...sInput, marginBottom: 0, fontSize: 12 }}>
-                        <option value="">— Toutes les catégories —</option>
-                        {categoriesProduits.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  {(rechercheP || filtreCatP) && (
-                    <div style={{ marginTop: 6, fontSize: 10, color: B[600] }}>
-                      {produitsFiltres.length} produit{produitsFiltres.length !== 1 ? 's' : ''} trouvé{produitsFiltres.length !== 1 ? 's' : ''}
-                      <button onClick={() => { setRechercheP(''); setFiltreCatP('') }}
-                        style={{ marginLeft: 8, background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 10, textDecoration: 'underline' }}>
-                        Effacer les filtres
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {/* Bouton ouvrir sélecteur */}
+                <button onClick={ouvrirModalProduits}
+                  style={{ width: '100%', padding: '10px', borderRadius: 7, border: `1.5px dashed ${B[400]}`, background: B[50], color: B[600], fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  🗂️ Sélectionner des produits {(form.lignes || []).length > 0 && `(${(form.lignes||[]).length} choisi${(form.lignes||[]).length>1?'s':''})`}
+                </button>
 
                 {/* En-tête colonnes */}
                 {(form.lignes || []).length > 0 && (
@@ -698,18 +717,9 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                     <div key={idx} style={{ marginBottom: 6, background: stockInsuffisant ? '#fff7ed' : '#f8fafc', border: `1px solid ${stockInsuffisant ? '#fed7aa' : B[100]}`, borderRadius: 7, padding: '8px 10px' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '2fr 70px 90px 80px 28px', gap: 6, alignItems: 'center' }}>
                         <div>
-                          <select value={ligne.produitId} onChange={e => modifierLigne(idx, 'produitId', e.target.value)}
-                            style={{ ...sInput, marginBottom: 0, fontSize: 12, background: '#fff' }}>
-                            <option value="">— Choisir un produit —</option>
-                            {produitsFiltres.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.reference ? `[${p.reference}] ` : ''}{p.designation || p.nom}{p.ral ? ` · ${p.ral}` : ''}{p.serie ? ` · ${p.serie}` : ''} — stock: {p.stock ?? 0}
-                              </option>
-                            ))}
-                            {produitsFiltres.length === 0 && <option disabled>Aucun produit ne correspond au filtre</option>}
-                          </select>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: B[900] }}>{ligne.produitNom}</div>
                           {ligne.produitId && (
-                            <div style={{ fontSize: 10, color: B[600], marginTop: 3, display: 'flex', gap: 8 }}>
+                            <div style={{ fontSize: 10, color: B[600], marginTop: 2, display: 'flex', gap: 8 }}>
                               {ligne.produitRef && <span>Réf : <strong>{ligne.produitRef}</strong></span>}
                               <span style={{ color: stockInsuffisant ? '#f97316' : '#16a34a', fontWeight: 600 }}>
                                 Stock dispo : {ligne.stockDispo ?? '—'}
@@ -737,12 +747,6 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                     </div>
                   )
                 })}
-
-                {/* Bouton ajouter ligne */}
-                <button onClick={ajouterLigne}
-                  style={{ width: '100%', padding: '8px', borderRadius: 7, border: `1.5px dashed ${B[300]}`, background: 'transparent', color: B[600], fontWeight: 600, fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
-                  + Ajouter un produit
-                </button>
 
                 {/* Total */}
                 {(form.lignes || []).length > 0 && (
@@ -780,6 +784,145 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
           </div>
         </div>
       )}
+
+      {/* ── Modal sélection multi-produits ── */}
+      {modalProduits && (() => {
+        const cats = [...new Set(produits.map(p => p.categorie).filter(Boolean))]
+        const pFiltres = produits.filter(p => {
+          const q = rechercheP.toLowerCase()
+          const matchQ = !q ||
+            (p.designation || p.nom || '').toLowerCase().includes(q) ||
+            (p.reference || '').toLowerCase().includes(q) ||
+            (p.ral || '').toLowerCase().includes(q) ||
+            (p.serie || '').toLowerCase().includes(q)
+          const matchCat = !filtreCatP || p.categorie === filtreCatP
+          return matchQ && matchCat
+        })
+        // Grouper par catégorie
+        const grouped = {}
+        pFiltres.forEach(p => {
+          const cat = p.categorie || 'Sans catégorie'
+          if (!grouped[cat]) grouped[cat] = []
+          grouped[cat].push(p)
+        })
+        const nbSelec = Object.keys(selection).length
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 660, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 48px rgba(10,25,41,0.22)' }}>
+
+              {/* En-tête */}
+              <div style={{ padding: '18px 22px 14px', borderBottom: `1px solid ${B[100]}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: B[900] }}>🗂️ Sélectionner des produits</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Cochez les produits à ajouter au chantier (toutes catégories)</div>
+                  </div>
+                  <button onClick={() => setModalProduits(false)} style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 6, padding: '5px 10px', cursor: 'pointer', color: '#64748b', fontSize: 18, lineHeight: 1 }}>×</button>
+                </div>
+                {/* Filtres */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input value={rechercheP} onChange={e => setRechercheP(e.target.value)}
+                    placeholder="🔍 Désignation, référence, RAL..."
+                    style={{ ...sInput, marginBottom: 0, fontSize: 12 }} />
+                  <select value={filtreCatP} onChange={e => setFiltreCatP(e.target.value)} style={{ ...sInput, marginBottom: 0, fontSize: 12 }}>
+                    <option value="">— Toutes les catégories —</option>
+                    {cats.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                </div>
+                {nbSelec > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: B[600], fontWeight: 600 }}>
+                    ✅ {nbSelec} produit{nbSelec > 1 ? 's' : ''} sélectionné{nbSelec > 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+
+              {/* Corps scrollable */}
+              <div style={{ overflowY: 'auto', flex: 1, padding: '12px 22px' }}>
+                {Object.keys(grouped).length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '32px 0', fontSize: 13 }}>Aucun produit trouvé.</div>
+                )}
+                {Object.entries(grouped).map(([cat, prods]) => (
+                  <div key={cat} style={{ marginBottom: 16 }}>
+                    {/* Titre catégorie */}
+                    <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ display: 'inline-block', width: 14, height: 2, background: B[400] }} />
+                      {cat}
+                      <span style={{ fontWeight: 400, color: '#94a3b8' }}>({prods.length})</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {prods.map(p => {
+                        const checked = !!selection[p.id]
+                        const stockOk = (p.stock ?? 0) > 0
+                        return (
+                          <div key={p.id}
+                            onClick={() => toggleProduit(p.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '8px 10px', borderRadius: 7, cursor: 'pointer',
+                              border: `1.5px solid ${checked ? B[400] : B[100]}`,
+                              background: checked ? B[50] : '#fafafa',
+                              transition: 'all 0.1s',
+                            }}>
+                            {/* Checkbox */}
+                            <div style={{
+                              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                              border: `2px solid ${checked ? B[500] : B[300]}`,
+                              background: checked ? B[500] : '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              {checked && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
+                            </div>
+                            {/* Infos produit */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: B[900], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.reference ? <span style={{ color: B[500], marginRight: 5 }}>[{p.reference}]</span> : null}
+                                {p.designation || p.nom}
+                                {p.ral ? <span style={{ color: '#94a3b8', marginLeft: 4 }}>· {p.ral}</span> : null}
+                                {p.serie ? <span style={{ color: '#94a3b8', marginLeft: 4 }}>· {p.serie}</span> : null}
+                              </div>
+                              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
+                                {p.prixUnitaire ? `${fmt(p.prixUnitaire)} FCFA/u` : ''}
+                                <span style={{ marginLeft: 8, color: stockOk ? '#16a34a' : '#ef4444', fontWeight: 600 }}>
+                                  Stock : {p.stock ?? 0}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Quantité si sélectionné */}
+                            {checked && (
+                              <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <button onClick={() => setSelection(s => ({ ...s, [p.id]: Math.max(1, (s[p.id] || 1) - 1) }))}
+                                  style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${B[300]}`, background: '#fff', cursor: 'pointer', color: B[700], fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                <input type="number" min="1" value={selection[p.id] || 1}
+                                  onChange={e => setSelection(s => ({ ...s, [p.id]: Math.max(1, Number(e.target.value)) }))}
+                                  style={{ width: 44, textAlign: 'center', padding: '2px 4px', border: `1px solid ${B[200]}`, borderRadius: 4, fontSize: 12, outline: 'none' }} />
+                                <button onClick={() => setSelection(s => ({ ...s, [p.id]: (s[p.id] || 1) + 1 }))}
+                                  style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${B[300]}`, background: '#fff', cursor: 'pointer', color: B[700], fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pied */}
+              <div style={{ padding: '14px 22px', borderTop: `1px solid ${B[100]}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: '#64748b' }}>
+                  {nbSelec > 0 ? `${nbSelec} produit${nbSelec > 1 ? 's' : ''} sélectionné${nbSelec > 1 ? 's' : ''}` : 'Aucune sélection'}
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setModalProduits(false)} style={sBtnSec}>Annuler</button>
+                  <button onClick={confirmerSelection} style={{ ...sBtn, opacity: nbSelec === 0 ? 0.5 : 1 }}>
+                    ✅ Confirmer la sélection
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modal export comptable */}
       {modalExport && (

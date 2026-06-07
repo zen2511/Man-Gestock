@@ -133,6 +133,7 @@ function App() {
           userActif={userActif}
           onLoginClick={() => setModalLoginVisible(true)}
           onLogout={handleLogout}
+          produits={produits.donnees}
         />
         <main style={{ flex:1, padding:'28px 32px', overflowY:'auto' }}>
           {renderPage()}
