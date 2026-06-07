@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { genId } from '../utils/storage'
 import * as XLSX from 'xlsx'
+import { MODAL_CSS } from '../utils/modalStyles'
 
 const CHAMPS_VIDES = {
   nom: '', adresse: '', telephone: '', email: '',
@@ -185,6 +186,7 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
   // ── RENDER ───────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', gap: 24 }}>
+      <style>{MODAL_CSS}</style>
 
       {/* Colonne principale */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -387,35 +389,45 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
 
       {/* Modal ajout / édition */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 30px', width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0f2847', marginBottom: 22, marginTop: 0 }}>
-              {fournisseurEdite ? 'Modifier le fournisseur' : '+ Nouveau fournisseur'}
-            </h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 16, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* En-tête */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '22px 26px 16px', borderBottom: '1px solid rgba(100,181,246,0.08)' }}>
               <div>
-                <label style={sLabel}>Nom *</label>
-                <input style={sInput} value={form.nom}
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(37,78,136,0.35)', color: 'rgba(100,181,246,0.85)', border: '1px solid rgba(100,181,246,0.18)', borderRadius: 20, padding: '2px 10px', display: 'inline-block', marginBottom: 6 }}>
+                  {fournisseurEdite ? 'Modification' : 'Création'}
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#f1f5f9' }}>
+                  {fournisseurEdite ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}
+                </div>
+              </div>
+              <button onClick={() => setModal(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 20, width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>×</button>
+            </div>
+
+            <div style={{ padding: '20px 26px 26px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Nom *</label>
+                <input className="mg-input mg-input-no-mb" value={form.nom}
                   onChange={e => setForm({ ...form, nom: e.target.value })}
                   placeholder="Nom société ou personne" />
               </div>
               <div>
-                <label style={sLabel}>Adresse</label>
-                <input style={sInput} value={form.adresse}
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Adresse</label>
+                <input className="mg-input mg-input-no-mb" value={form.adresse}
                   onChange={e => setForm({ ...form, adresse: e.target.value })}
                   placeholder="Ville, quartier..." />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
-                  <label style={sLabel}>Téléphone</label>
-                  <input style={sInput} value={form.telephone}
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Téléphone</label>
+                  <input className="mg-input mg-input-no-mb" value={form.telephone}
                     onChange={e => setForm({ ...form, telephone: e.target.value })}
                     placeholder="699 123 456" />
                 </div>
                 <div>
-                  <label style={sLabel}>Email</label>
-                  <input style={sInput} value={form.email}
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Email</label>
+                  <input className="mg-input mg-input-no-mb" value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     placeholder="email@exemple.com" />
                 </div>
@@ -423,11 +435,11 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
 
               {/* Catégories livrées */}
               <div>
-                <label style={sLabel}>Catégories livrées</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Catégories livrées</label>
                 {categories.length === 0 ? (
-                  <p style={{ fontSize: 13, color: '#94a3b8' }}>Aucune catégorie disponible. Créez-en dans Catégories.</p>
+                  <p style={{ fontSize: 13, color: 'rgba(148,190,230,0.5)' }}>Aucune catégorie disponible. Créez-en dans Catégories.</p>
                 ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '12px', background: '#f8fafc', borderRadius: 10, border: '1.5px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1.5px solid rgba(100,181,246,0.12)' }}>
                     {categories.map(cat => {
                       const selectionne = (form.categoriesLivrees || []).includes(cat.id)
                       return (
@@ -437,9 +449,9 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
                           style={{
                             padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
                             cursor: 'pointer', transition: 'all 0.12s',
-                            background: selectionne ? (cat.couleur || '#1565c0') : '#fff',
-                            color: selectionne ? '#fff' : (cat.couleur || '#1565c0'),
-                            border: `2px solid ${cat.couleur || '#1565c0'}`,
+                            background: selectionne ? (cat.couleur || '#1565c0') : 'rgba(255,255,255,0.06)',
+                            color: selectionne ? '#fff' : 'rgba(148,190,230,0.75)',
+                            border: `2px solid ${selectionne ? (cat.couleur || '#1565c0') : 'rgba(100,181,246,0.2)'}`,
                           }}
                         >
                           {cat.nom}
@@ -451,16 +463,16 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
               </div>
 
               <div>
-                <label style={sLabel}>Note</label>
-                <input style={sInput} value={form.note}
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Note</label>
+                <input className="mg-input mg-input-no-mb" value={form.note}
                   onChange={e => setForm({ ...form, note: e.target.value })}
                   placeholder="Note optionnelle..." />
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 22 }}>
-              <button onClick={() => setModal(false)} style={btnS}>Annuler</button>
-              <button onClick={sauvegarder} style={btnP}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '0 26px 22px', borderTop: '1px solid rgba(100,181,246,0.08)', paddingTop: 16 }}>
+              <button onClick={() => setModal(false)} className="mg-btn-ghost">Annuler</button>
+              <button onClick={sauvegarder} className="mg-btn-primary">
                 {fournisseurEdite ? 'Enregistrer' : 'Ajouter'}
               </button>
             </div>
@@ -470,15 +482,18 @@ function Fournisseurs({ fournisseurs, produits = [], categories = [], droits }) 
 
       {/* Modal confirmation suppression */}
       {confirmation && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: '26px 28px', width: '100%', maxWidth: 360 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f2847', marginTop: 0 }}>Retirer ce fournisseur ?</h3>
-            <p style={{ color: '#64748b', fontSize: 14 }}>
-              <strong>{confirmation.nom}</strong> sera supprimé définitivement.
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 14, padding: '26px 28px', width: '100%', maxWidth: 360, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Retirer ce fournisseur ?</h3>
+              <button onClick={() => setConfirmation(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 18, width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ color: 'rgba(148,190,230,0.6)', fontSize: 14, margin: '0 0 20px' }}>
+              <strong style={{ color: '#f1f5f9' }}>{confirmation.nom}</strong> sera supprimé définitivement.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmation(null)} style={btnS}>Annuler</button>
-              <button onClick={supprimer} style={{ ...btnP, background: '#dc2626' }}>Confirmer</button>
+              <button onClick={() => setConfirmation(null)} className="mg-btn-ghost">Annuler</button>
+              <button onClick={supprimer} className="mg-btn-danger">Confirmer</button>
             </div>
           </div>
         </div>

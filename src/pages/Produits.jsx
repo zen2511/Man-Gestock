@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { genId } from '../utils/storage'
 import * as XLSX from 'xlsx'
+import { MODAL_CSS } from '../utils/modalStyles'
 
 const CLE_TEINTES = 'mansa_teintes'
 const CLE_UNITES  = 'mansa_unites'
@@ -348,6 +349,7 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
   // ── RENDER ────────────────────────────────────────────────
   return (
     <div>
+      <style>{MODAL_CSS}</style>
       {/* En-tête */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
@@ -520,51 +522,45 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
 
       {/* ── Modal ajout/édition ── */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,40,71,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+        <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
+          <div className="mg-card mg-card-scroll" style={{ maxWidth: 580 }}>
 
             {/* En-tête modal */}
-            <div style={{ padding: '22px 28px 18px', borderBottom: '1.5px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="mg-header">
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-                  {produitEdite ? 'Modification' : 'Création'}
-                </div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f2847' }}>
-                  {produitEdite ? 'Modifier le produit' : 'Nouveau produit'}
-                </div>
+                <div className="mg-badge">{produitEdite ? 'Modification' : 'Création'}</div>
+                <div className="mg-title">{produitEdite ? 'Modifier le produit' : 'Nouveau produit'}</div>
+                <div className="mg-subtitle">Remplissez les informations du produit</div>
               </div>
-              <button
-                onClick={() => setModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, lineHeight: 1, padding: 4, borderRadius: 6 }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f2847' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8' }}
-              >✕</button>
+              <button className="mg-close" onClick={() => setModal(false)}>×</button>
             </div>
 
-            <div style={{ padding: '20px 28px 28px' }}>
+            <div className="mg-card-body">
 
               {/* Section 1 — Identification */}
-              <div style={sDivider}>Identification</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 16 }}>
+              <div className="mg-divider">
+                <div className="mg-divider-line" /><span className="mg-divider-label">Identification</span><div className="mg-divider-line" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Référence</label>
-                  <input style={sInput} value={form.reference}
+                  <label className="mg-label">Référence</label>
+                  <input className="mg-input mg-input-no-mb" value={form.reference}
                     onChange={e => setForm({ ...form, reference: e.target.value })}
                     placeholder="ALU-001" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Désignation <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input style={sInput} value={form.designation}
+                  <label className="mg-label">Désignation <span style={{ color: '#f87171' }}>*</span></label>
+                  <input className="mg-input mg-input-no-mb" value={form.designation}
                     onChange={e => setForm({ ...form, designation: e.target.value })}
                     placeholder="Nom complet du produit" />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div className="mg-field-grid-2" style={{ marginTop: 14 }}>
                 {/* RAL — select depuis Paramètres avec option texte libre */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>RAL / Couleur / Teinte</label>
-                  <select style={sInput} value={form.ral}
+                  <label className="mg-label">RAL / Couleur / Teinte</label>
+                  <select className="mg-select mg-select-no-mb" value={form.ral}
                     onChange={e => setForm({ ...form, ral: e.target.value })}>
                     <option value="">Sélectionner une teinte</option>
                     {teintes.map(t => (
@@ -574,7 +570,8 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
                   </select>
                   {form.ral === '__autre__' && (
                     <input
-                      style={{ ...sInput, marginTop: 6 }}
+                      className="mg-input"
+                      style={{ marginTop: 6 }}
                       placeholder="Saisir la teinte manuellement"
                       onChange={e => setForm({ ...form, ral: e.target.value })}
                       autoFocus
@@ -582,19 +579,21 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
                   )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Série / Modèle</label>
-                  <input style={sInput} value={form.serie}
+                  <label className="mg-label">Série / Modèle</label>
+                  <input className="mg-input mg-input-no-mb" value={form.serie}
                     onChange={e => setForm({ ...form, serie: e.target.value })}
                     placeholder="Ex : Série 45, T55..." />
                 </div>
               </div>
 
               {/* Section 2 — Classification */}
-              <div style={sDivider}>Classification</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div className="mg-divider" style={{ marginTop: 6 }}>
+                <div className="mg-divider-line" /><span className="mg-divider-label">Classification</span><div className="mg-divider-line" />
+              </div>
+              <div className="mg-field-grid-2">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Catégorie</label>
-                  <select style={sInput} value={form.categorieId}
+                  <label className="mg-label">Catégorie</label>
+                  <select className="mg-select mg-select-no-mb" value={form.categorieId}
                     onChange={e => {
                       const cat = categories.find(c => c.id === e.target.value)
                       setForm({ ...form, categorieId: e.target.value, categorie: cat?.nom || '' })
@@ -606,8 +605,8 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Fournisseur</label>
-                  <select style={sInput} value={form.fournisseurId}
+                  <label className="mg-label">Fournisseur</label>
+                  <select className="mg-select mg-select-no-mb" value={form.fournisseurId}
                     onChange={e => setForm({ ...form, fournisseurId: e.target.value })}>
                     <option value="">Sélectionner un fournisseur</option>
                     {fournisseurs.map(f => (
@@ -618,12 +617,14 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
               </div>
 
               {/* Section 3 — Stock & Prix */}
-              <div style={sDivider}>Stock & Tarification</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div className="mg-divider" style={{ marginTop: 6 }}>
+                <div className="mg-divider-line" /><span className="mg-divider-label">Stock & Tarification</span><div className="mg-divider-line" />
+              </div>
+              <div className="mg-field-grid-3">
                 {/* Unité — select depuis Paramètres */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Unité</label>
-                  <select style={sInput} value={form.unite}
+                  <label className="mg-label">Unité</label>
+                  <select className="mg-select mg-select-no-mb" value={form.unite}
                     onChange={e => setForm({ ...form, unite: e.target.value })}>
                     <option value="">Sélectionner</option>
                     {unites.map(u => (
@@ -633,7 +634,8 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
                   </select>
                   {form.unite === '__autre__' && (
                     <input
-                      style={{ ...sInput, marginTop: 6 }}
+                      className="mg-input"
+                      style={{ marginTop: 6 }}
                       placeholder="Saisir l'unité"
                       onChange={e => setForm({ ...form, unite: e.target.value })}
                       autoFocus
@@ -641,37 +643,37 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
                   )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Prix unitaire (FCFA)</label>
-                  <input type="number" min="0" style={sInput} value={form.prixUnitaire}
+                  <label className="mg-label">Prix unitaire (FCFA)</label>
+                  <input type="number" min="0" className="mg-input mg-input-no-mb" value={form.prixUnitaire}
                     onChange={e => setForm({ ...form, prixUnitaire: e.target.value })}
                     placeholder="0" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Stock initial</label>
-                  <input type="number" min="0" style={sInput} value={form.stock}
+                  <label className="mg-label">Stock initial</label>
+                  <input type="number" min="0" className="mg-input mg-input-no-mb" value={form.stock}
                     onChange={e => setForm({ ...form, stock: e.target.value })} />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div className="mg-field-grid-2" style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={sLabel}>Seuil d'alerte (stock min)</label>
-                  <input type="number" min="0" style={sInput} value={form.stockMin}
+                  <label className="mg-label">Seuil d'alerte (stock min)</label>
+                  <input type="number" min="0" className="mg-input mg-input-no-mb" value={form.stockMin}
                     onChange={e => setForm({ ...form, stockMin: e.target.value })} />
                 </div>
                 {!produitEdite && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                    <label style={sLabel}>Date d'entrée</label>
-                    <input type="date" style={sInput} value={form.dateEntree}
+                    <label className="mg-label">Date d'entrée</label>
+                    <input type="date" className="mg-input mg-input-no-mb" value={form.dateEntree}
                       onChange={e => setForm({ ...form, dateEntree: e.target.value })} />
                   </div>
                 )}
               </div>
 
               {/* Actions */}
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1.5px solid #f1f5f9', marginTop: 4 }}>
-                <button onClick={() => setModal(false)} style={sBtnSec}>Annuler</button>
-                <button onClick={sauvegarder} style={sBtn}>
+              <div className="mg-actions mg-actions-border" style={{ marginTop: 18 }}>
+                <button className="mg-btn-ghost" onClick={() => setModal(false)}>Annuler</button>
+                <button className="mg-btn-primary" onClick={sauvegarder}>
                   {produitEdite ? 'Enregistrer les modifications' : 'Ajouter le produit'}
                 </button>
               </div>
@@ -682,26 +684,21 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
 
       {/* ── Modal confirmation vider stock ── */}
       {confirmViderStock && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,40,71,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: '28px 30px', width: '100%', maxWidth: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 22 }}>
-              ⚠️
-            </div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f2847', margin: '0 0 10px', textAlign: 'center' }}>
+        <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setConfirmViderStock(false)}>
+          <div className="mg-card" style={{ maxWidth: 400, textAlign: 'center' }}>
+            <div className="mg-confirm-icon mg-confirm-icon-warn">⚠️</div>
+            <div className="mg-title" style={{ textAlign: 'center', marginBottom: 8 }}>
               Vider tout le stock ?
-            </h3>
-            <p style={{ color: '#64748b', fontSize: 13, textAlign: 'center', marginBottom: 6 }}>
-              Les <strong style={{ color: '#0f2847' }}>{donnees.length} produit(s)</strong> du catalogue seront définitivement supprimés.
+            </div>
+            <p className="mg-body-text" style={{ textAlign: 'center' }}>
+              Les <span className="mg-body-strong">{donnees.length} produit(s)</span> du catalogue seront définitivement supprimés.
             </p>
-            <p style={{ color: '#ef4444', fontSize: 12, textAlign: 'center', marginBottom: 24 }}>
+            <p style={{ color: '#f87171', fontSize: 12, textAlign: 'center', marginBottom: 4 }}>
               Cette action est irréversible.
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={() => setConfirmViderStock(false)} style={sBtnSec}>Annuler</button>
-              <button onClick={viderToutLeStock}
-                style={{ ...sBtn, background: '#ef4444' }}>
-                Confirmer
-              </button>
+            <div className="mg-actions" style={{ justifyContent: 'center' }}>
+              <button className="mg-btn-ghost" onClick={() => setConfirmViderStock(false)}>Annuler</button>
+              <button className="mg-btn-danger" onClick={viderToutLeStock}>Confirmer</button>
             </div>
           </div>
         </div>
@@ -709,29 +706,41 @@ function Produits({ produits, mouvements, fournisseurs = [], categories: categor
 
       {/* ── Modal mouvement de stock ── */}
       {modalMouvement && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 30px', width: '100%', maxWidth: 400 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f2847', marginTop: 0, marginBottom: 16 }}>
-              {modalMouvement.type === 'entree' ? 'Entrée de stock' : 'Sortie de stock'}
-            </h3>
-            <p style={{ color: '#64748b', fontSize: 13, marginBottom: 4 }}>
-              Produit : <strong style={{ color: '#0f2847' }}>{modalMouvement.produit.designation}</strong>
-            </p>
-            <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
-              Stock actuel : <strong style={{ color: '#2563eb', fontSize: 16 }}>{modalMouvement.produit.stock || 0}</strong>
-            </p>
-            <label style={sLabel}>Quantité</label>
-            <input type="number" min="1" value={quantiteMvt}
-              onChange={e => setQuantiteMvt(e.target.value)}
-              style={{ ...sInput, marginBottom: 14 }} />
-            <label style={sLabel}>Note</label>
-            <input value={noteMvt} onChange={e => setNoteMvt(e.target.value)}
-              placeholder="Ex: Livraison fournisseur..."
-              style={{ ...sInput, marginBottom: 24 }} />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setModalMouvement(null)} style={sBtnSec}>Annuler</button>
-              <button onClick={appliquerMouvement}
-                style={{ ...sBtn, background: modalMouvement.type === 'entree' ? '#16a34a' : '#c0392b' }}>
+        <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setModalMouvement(null)}>
+          <div className="mg-card" style={{ maxWidth: 420 }}>
+            <div className="mg-header">
+              <div>
+                <div className="mg-title">
+                  {modalMouvement.type === 'entree' ? '📦 Entrée de stock' : '📤 Sortie de stock'}
+                </div>
+                <div className="mg-subtitle">{modalMouvement.produit.designation}</div>
+              </div>
+              <button className="mg-close" onClick={() => setModalMouvement(null)}>×</button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 18, padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 9, border: '1px solid rgba(100,181,246,0.10)' }}>
+              <span style={{ fontSize: 12, color: 'rgba(148,190,230,0.55)' }}>Stock actuel :</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: 'rgba(100,181,246,0.9)' }}>{modalMouvement.produit.stock || 0}</span>
+            </div>
+
+            <div className="mg-field">
+              <label className="mg-label">Quantité</label>
+              <input type="number" min="1" className="mg-input" value={quantiteMvt}
+                onChange={e => setQuantiteMvt(e.target.value)} />
+            </div>
+            <div className="mg-field">
+              <label className="mg-label">Note</label>
+              <input className="mg-input" value={noteMvt} onChange={e => setNoteMvt(e.target.value)}
+                placeholder="Ex: Livraison fournisseur..." />
+            </div>
+
+            <div className="mg-actions">
+              <button className="mg-btn-ghost" onClick={() => setModalMouvement(null)}>Annuler</button>
+              <button className="mg-btn-primary"
+                onClick={appliquerMouvement}
+                style={{ background: modalMouvement.type === 'entree'
+                  ? 'linear-gradient(135deg, #15803d 0%, #16a34a 100%)'
+                  : 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)' }}>
                 {modalMouvement.type === 'entree' ? "Confirmer l'entrée" : "Confirmer la sortie"}
               </button>
             </div>

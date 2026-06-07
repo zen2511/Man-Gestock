@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { genId } from '../utils/storage'
+import { MODAL_CSS } from '../utils/modalStyles'
 
 const CHAMPS_VIDES = { nom: '', description: '' }
 
@@ -62,6 +63,7 @@ function Categories({ categories, produits }) {
 
  return (
  <div style={{ display: 'flex', gap: 20 }}>
+ <style>{MODAL_CSS}</style>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
  <div>
@@ -191,45 +193,62 @@ function Categories({ categories, produits }) {
  })()}
 
  {modal && (
- <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
- <div style={{ background: '#fff', borderRadius: 10, padding: '24px 26px', width: '100%', maxWidth: 380 }}>
- <h3 style={{ fontSize: 15, fontWeight: 700, color: B[900], marginBottom: 16, marginTop: 0 }}>
- {catEditee ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
- </h3>
- <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Nom *</label>
- <input style={sInput} value={form.nom}
- onChange={e => setForm({ ...form, nom: e.target.value })}
- placeholder="Ex: Mur rideau, Fenêtre battante..." />
- <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 3 }}>Description</label>
- <textarea
- value={form.description}
- onChange={e => setForm({ ...form, description: e.target.value })}
- placeholder="Description optionnelle..."
- rows={2}
- style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit' }}
- />
- <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
- <button onClick={() => setModal(false)} style={btnS}>Annuler</button>
- <button onClick={sauvegarder} style={btnP}>{catEditee ? 'Enregistrer' : 'Créer'}</button>
- </div>
+ <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+ <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 14, width: '100%', maxWidth: 380, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+
+   {/* En-tête */}
+   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', borderBottom: '1px solid rgba(100,181,246,0.08)' }}>
+     <div>
+       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(37,78,136,0.35)', color: 'rgba(100,181,246,0.85)', border: '1px solid rgba(100,181,246,0.18)', borderRadius: 20, padding: '2px 10px', display: 'inline-block', marginBottom: 6 }}>
+         {catEditee ? 'Modification' : 'Création'}
+       </div>
+       <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>
+         {catEditee ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
+       </div>
+     </div>
+     <button onClick={() => setModal(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 20, width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>×</button>
+   </div>
+
+   <div style={{ padding: '20px 24px' }}>
+     <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Nom *</label>
+     <input className="mg-input" value={form.nom}
+       onChange={e => setForm({ ...form, nom: e.target.value })}
+       placeholder="Ex: Mur rideau, Fenêtre battante..." />
+     <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Description</label>
+     <textarea
+       value={form.description}
+       onChange={e => setForm({ ...form, description: e.target.value })}
+       placeholder="Description optionnelle..."
+       rows={2}
+       className="mg-input"
+       style={{ resize: 'vertical', fontFamily: 'inherit' }}
+     />
+     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6, borderTop: '1px solid rgba(100,181,246,0.08)', paddingTop: 16 }}>
+       <button onClick={() => setModal(false)} className="mg-btn-ghost">Annuler</button>
+       <button onClick={sauvegarder} className="mg-btn-primary">{catEditee ? 'Enregistrer' : 'Créer'}</button>
+     </div>
+   </div>
  </div>
  </div>
  )}
 
  {confirmation && (
- <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
- <div style={{ background: '#fff', borderRadius: 10, padding: '24px 26px', width: '100%', maxWidth: 360 }}>
- <h3 style={{ fontSize: 14, fontWeight: 700, color: B[900], marginTop: 0 }}>Supprimer cette catégorie ?</h3>
- <p style={{ color: '#64748b', fontSize: 13 }}>
- <strong>{confirmation.nom}</strong> sera supprimée définitivement.
- {countProduits(confirmation) > 0 && (
- <span style={{ color: B[600] }}> Les {countProduits(confirmation)} produits associés ne seront pas supprimés.</span>
- )}
- </p>
- <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
- <button onClick={() => setConfirmation(null)} style={btnS}>Annuler</button>
- <button onClick={supprimer} style={btnP}>Confirmer</button>
- </div>
+ <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+ <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 14, padding: '24px 26px', width: '100%', maxWidth: 360, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+     <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Supprimer cette catégorie ?</h3>
+     <button onClick={() => setConfirmation(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 18, width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
+   </div>
+   <p style={{ color: 'rgba(148,190,230,0.6)', fontSize: 13, margin: '0 0 20px' }}>
+     <strong style={{ color: '#f1f5f9' }}>{confirmation.nom}</strong> sera supprimée définitivement.
+     {countProduits(confirmation) > 0 && (
+       <span style={{ color: 'rgba(100,181,246,0.8)' }}> Les {countProduits(confirmation)} produits associés ne seront pas supprimés.</span>
+     )}
+   </p>
+   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+     <button onClick={() => setConfirmation(null)} className="mg-btn-ghost">Annuler</button>
+     <button onClick={supprimer} className="mg-btn-danger">Confirmer</button>
+   </div>
  </div>
  </div>
  )}

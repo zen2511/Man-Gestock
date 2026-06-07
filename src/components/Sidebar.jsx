@@ -75,53 +75,211 @@ const PARAMS_ICON = (
   </svg>
 )
 
+const SIDEBAR_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  .sidebar-root {
+    font-family: 'DM Sans', sans-serif;
+    position: relative;
+    background: transparent;
+  }
+
+  /* Fond glassmorphism */
+  .sidebar-glass {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      160deg,
+      rgba(8, 20, 40, 0.92) 0%,
+      rgba(10, 28, 58, 0.88) 40%,
+      rgba(13, 35, 70, 0.90) 100%
+    );
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-right: 1px solid rgba(100, 181, 246, 0.08);
+    z-index: 0;
+  }
+
+  /* Reflets lumineux décoratifs */
+  .sidebar-glow-top {
+    position: absolute;
+    top: -60px;
+    left: -40px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(25, 118, 210, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .sidebar-glow-bottom {
+    position: absolute;
+    bottom: 20px;
+    right: -30px;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(100, 181, 246, 0.10) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Contenu au-dessus du glass */
+  .sidebar-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  /* Item nav */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 9px;
+    margin-bottom: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    position: relative;
+    transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+    color: rgba(148, 190, 230, 0.7);
+    overflow: hidden;
+  }
+
+  .nav-item:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: rgba(180, 215, 248, 0.95) !important;
+    box-shadow: inset 0 0 0 1px rgba(100, 181, 246, 0.10);
+  }
+
+  /* État actif — remplissage bleu complet */
+  .nav-item.active {
+    background: linear-gradient(
+      135deg,
+      rgba(21, 101, 192, 0.85) 0%,
+      rgba(25, 118, 210, 0.75) 100%
+    ) !important;
+    color: #fff !important;
+    font-weight: 600;
+    box-shadow:
+      0 4px 16px rgba(21, 101, 192, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 0 0 1px rgba(100, 181, 246, 0.25);
+  }
+
+  .nav-item.active .nav-icon {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(144, 202, 249, 0.6));
+  }
+
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, #90caf9, #42a5f5);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .nav-icon {
+    flex-shrink: 0;
+    opacity: 0.65;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.15s, filter 0.15s;
+  }
+
+  .nav-item:hover .nav-icon {
+    opacity: 0.9;
+  }
+
+  /* Séparateur section */
+  .nav-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(100, 181, 246, 0.22);
+    padding: 2px 12px 8px;
+  }
+
+  /* Scrollbar custom */
+  .sidebar-nav::-webkit-scrollbar { width: 3px; }
+  .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(100,181,246,0.15); border-radius: 3px; }
+
+  /* Toggle button */
+  .toggle-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(100, 181, 246, 0.12);
+    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(100, 181, 246, 0.5);
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .toggle-btn:hover {
+    background: rgba(21, 101, 192, 0.25);
+    border-color: rgba(100, 181, 246, 0.35);
+    color: #90caf9;
+  }
+
+  /* Version badge */
+  .version-badge {
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: rgba(100, 181, 246, 0.18);
+    margin-top: 10px;
+    padding: 0 4px;
+  }
+
+  /* Logo zone */
+  .logo-zone {
+    height: 56px;
+    border-bottom: 1px solid rgba(100, 181, 246, 0.07);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .logo-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c8dff0;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .logo-sub {
+    font-size: 9px;
+    color: rgba(100, 181, 246, 0.3);
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+`
+
 function NavItem({ item, actif, collapsed, onClick }) {
   return (
     <div
       onClick={onClick}
       title={collapsed ? item.label : ''}
+      className={`nav-item${actif ? ' active' : ''}`}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
         padding: collapsed ? '10px 0' : '9px 12px',
         justifyContent: collapsed ? 'center' : 'flex-start',
-        borderRadius: 7,
-        marginBottom: 2,
-        cursor: 'pointer',
-        background: actif ? 'rgba(21,101,192,0.18)' : 'transparent',
-        color: actif ? '#90caf9' : '#4a7fa5',
-        fontWeight: actif ? 600 : 400,
-        fontSize: 13,
-        transition: 'background 0.12s, color 0.12s',
-        whiteSpace: 'nowrap',
-        position: 'relative',
       }}
-      onMouseEnter={e => { if (!actif) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#7ab0d4' } }}
-      onMouseLeave={e => { if (!actif) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4a7fa5' } }}
     >
-      {/* Trait actif */}
-      {actif && (
-        <span style={{
-          position: 'absolute',
-          left: 0, top: '20%', bottom: '20%',
-          width: 3, borderRadius: '0 3px 3px 0',
-          background: '#64b5f6',
-        }} />
-      )}
-
-      {/* Icône */}
-      <span style={{
-        flexShrink: 0,
-        opacity: actif ? 1 : 0.7,
-        display: 'flex',
-        alignItems: 'center',
-        color: actif ? '#90caf9' : 'inherit',
-      }}>
-        {item.icon}
-      </span>
-
-      {/* Label */}
+      <span className="nav-icon">{item.icon}</span>
       {!collapsed && (
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {item.label}
@@ -135,118 +293,113 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed })
   const w = collapsed ? 56 : 214
 
   return (
-    <div style={{
-      width: w,
-      minHeight: '100vh',
-      background: '#0a1929',
-      display: 'flex',
-      flexDirection: 'column',
-      flexShrink: 0,
-      borderRight: '1px solid #1a2f4a',
-      transition: 'width 0.22s cubic-bezier(.4,0,.2,1)',
-      overflow: 'hidden',
-    }}>
+    <>
+      <style>{SIDEBAR_STYLES}</style>
+      <div
+        className="sidebar-root"
+        style={{
+          width: w,
+          minHeight: '100vh',
+          flexShrink: 0,
+          transition: 'width 0.22s cubic-bezier(.4,0,.2,1)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Fond verre */}
+        <div className="sidebar-glass" />
+        <div className="sidebar-glow-top" />
+        <div className="sidebar-glow-bottom" />
 
-      {/* ── Logo + toggle ── */}
-      <div style={{
-        padding: collapsed ? '0 10px' : '0 14px',
-        height: 56,
-        borderBottom: '1px solid #1a2f4a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'space-between',
-        gap: 8,
-        flexShrink: 0,
-      }}>
-        {!collapsed && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <img src={LOGO_BASE64} alt="MAN" style={{ height: 28, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#c8dff0', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                MAN-SA
+        <div className="sidebar-content">
+
+          {/* ── Logo + toggle ── */}
+          <div
+            className="logo-zone"
+            style={{
+              padding: collapsed ? '0 10px' : '0 14px',
+              justifyContent: collapsed ? 'center' : 'space-between',
+              gap: 8,
+            }}
+          >
+            {!collapsed && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <img
+                  src={LOGO_BASE64}
+                  alt="MAN"
+                  style={{ height: 28, width: 'auto', objectFit: 'contain', flexShrink: 0 }}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div className="logo-name">MAN-SA</div>
+                  <div className="logo-sub">Gestion de stock</div>
+                </div>
               </div>
-              <div style={{ fontSize: 9, color: '#2a4a6a', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Gestion de stock
-              </div>
-            </div>
+            )}
+            {collapsed && (
+              <img
+                src={LOGO_BASE64}
+                alt="MAN"
+                style={{ height: 24, width: 32, objectFit: 'cover', objectPosition: 'left center', borderRadius: 3 }}
+              />
+            )}
+            <button
+              className="toggle-btn"
+              onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? 'Développer' : 'Réduire'}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                {collapsed
+                  ? <polyline points="3,2 7,5 3,8"/>
+                  : <polyline points="7,2 3,5 7,8"/>
+                }
+              </svg>
+            </button>
           </div>
-        )}
-        {collapsed && (
-          <img src={LOGO_BASE64} alt="MAN" style={{ height: 24, width: 32, objectFit: 'cover', objectPosition: 'left center', borderRadius: 3 }} />
-        )}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? 'Développer' : 'Réduire'}
-          style={{
-            background: 'transparent',
-            border: '1px solid #1e3a5a',
-            borderRadius: 5,
-            width: 22,
-            height: 22,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: '#4a7fa5',
-            flexShrink: 0,
-            transition: 'border-color 0.15s, color 0.15s, background 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#0d2137'; e.currentTarget.style.borderColor = '#2d6aa0'; e.currentTarget.style.color = '#90caf9' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#1e3a5a'; e.currentTarget.style.color = '#4a7fa5' }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-            {collapsed
-              ? <><polyline points="3,2 7,5 3,8"/></>
-              : <><polyline points="7,2 3,5 7,8"/></>
-            }
-          </svg>
-        </button>
-      </div>
 
-      {/* ── Nav principale ── */}
-      <nav style={{
-        padding: collapsed ? '10px 6px' : '10px 8px',
-        flex: 1,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#1a2f4a transparent',
-      }}>
-        {!collapsed && (
-          <div style={{
-            fontSize: 9, color: '#1e3a5a', fontWeight: 700,
-            letterSpacing: '0.8px', padding: '2px 12px 8px',
-            textTransform: 'uppercase',
-          }}>
-            Navigation
-          </div>
-        )}
-        {MENU.map(item => (
-          <NavItem
-            key={item.id}
-            item={item}
-            actif={pageActive === item.id}
-            collapsed={collapsed}
-            onClick={() => setPageActive(item.id)}
-          />
-        ))}
-      </nav>
+          {/* ── Nav principale ── */}
+          <nav
+            className="sidebar-nav"
+            style={{
+              padding: collapsed ? '10px 6px' : '10px 8px',
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(100,181,246,0.15) transparent',
+            }}
+          >
+            {!collapsed && <div className="nav-section-label">Navigation</div>}
 
-      {/* ── Paramètres + version ── */}
-      <div style={{ padding: collapsed ? '8px 6px 16px' : '8px 8px 16px', borderTop: '1px solid #1a2f4a', flexShrink: 0 }}>
-        <NavItem
-          item={{ id: 'parametres', label: 'Paramètres', icon: PARAMS_ICON }}
-          actif={pageActive === 'parametres'}
-          collapsed={collapsed}
-          onClick={() => setPageActive('parametres')}
-        />
-        {!collapsed && (
-          <div style={{ textAlign: 'center', marginTop: 10, fontSize: 9, color: '#1e3a5a', letterSpacing: '0.3px' }}>
-            v2.0 · Man-Gestock
+            {MENU.map(item => (
+              <NavItem
+                key={item.id}
+                item={item}
+                actif={pageActive === item.id}
+                collapsed={collapsed}
+                onClick={() => setPageActive(item.id)}
+              />
+            ))}
+          </nav>
+
+          {/* ── Paramètres + version ── */}
+          <div
+            style={{
+              padding: collapsed ? '8px 6px 16px' : '8px 8px 16px',
+              borderTop: '1px solid rgba(100, 181, 246, 0.07)',
+              flexShrink: 0,
+            }}
+          >
+            <NavItem
+              item={{ id: 'parametres', label: 'Paramètres', icon: PARAMS_ICON }}
+              actif={pageActive === 'parametres'}
+              collapsed={collapsed}
+              onClick={() => setPageActive('parametres')}
+            />
+            {!collapsed && <div className="version-badge">v2.0 · Man-Gestock</div>}
           </div>
-        )}
+
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

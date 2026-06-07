@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { genId } from '../utils/storage'
+import { MODAL_CSS } from '../utils/modalStyles'
 
 const fmt = n => new Intl.NumberFormat('fr-FR').format(n || 0)
 
@@ -439,6 +440,7 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
 
   return (
     <div style={{ display: 'flex', gap: 20 }}>
+      <style>{MODAL_CSS}</style>
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -600,42 +602,40 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
 
       {/* Modal */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 620, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(10,25,41,0.18)' }}>
+        <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
+          <div className="mg-card mg-card-scroll" style={{ maxWidth: 640 }}>
 
             {/* En-tête modal */}
-            <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${B[100]}`, position: 'sticky', top: 0, background: '#fff', zIndex: 2, borderRadius: '12px 12px 0 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: B[900] }}>{cmdEditee ? '✏️ Modifier le chantier' : '🏗️ Nouveau chantier'}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Remplissez les informations ci-dessous</div>
-                </div>
-                <button onClick={() => setModal(false)} style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 6, padding: '5px 10px', cursor: 'pointer', color: '#64748b', fontSize: 18, lineHeight: 1 }}>×</button>
+            <div className="mg-header-sticky mg-header" style={{ borderRadius: '18px 18px 0 0' }}>
+              <div>
+                <div className="mg-title">{cmdEditee ? '✏️ Modifier le chantier' : '🏗️ Nouveau chantier'}</div>
+                <div className="mg-subtitle">Remplissez les informations ci-dessous</div>
               </div>
+              <button className="mg-close" onClick={() => setModal(false)}>×</button>
             </div>
 
-            <div style={{ padding: '20px 24px' }}>
+            <div className="mg-card-body">
 
               {/* ── Section 1 : Identification ── */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(100,181,246,0.8)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: 'rgba(100,181,246,0.6)' }} />
                   1. Identification du chantier
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', display: 'block', marginBottom: 4 }}>
                       Référence interne
-                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Numéro unique du chantier</span>
+                      <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)', marginLeft: 4 }}>· Numéro unique du chantier</span>
                     </label>
-                    <input style={sInput} value={form.reference || ''} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Ex : CMD-2025-001" />
+                    <input className="mg-input mg-input-no-mb" value={form.reference || ''} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Ex : CMD-2025-001" />
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', display: 'block', marginBottom: 4 }}>
                       Statut
-                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Avancement du chantier</span>
+                      <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)', marginLeft: 4 }}>· Avancement du chantier</span>
                     </label>
-                    <select style={sInput} value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })}>
+                    <select className="mg-select mg-select-no-mb" value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })}>
                       {Object.entries(STATUTS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
                     </select>
                   </div>
@@ -644,15 +644,15 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
 
               {/* ── Section 2 : Client ── */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(100,181,246,0.8)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: 'rgba(100,181,246,0.6)' }} />
                   2. Client
                 </div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', display: 'block', marginBottom: 4 }}>
                   Client associé *
-                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Un chantier doit être lié à un client</span>
+                  <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)', marginLeft: 4 }}>· Un chantier doit être lié à un client</span>
                 </label>
-                <select style={{ ...sInput, borderColor: !form.clientId ? '#fca5a5' : B[200] }} value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}>
+                <select className="mg-select mg-select-no-mb" style={{ borderColor: !form.clientId ? '#f87171' : undefined }} value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}>
                   <option value="">— Sélectionner un client —</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>
@@ -664,48 +664,48 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
 
               {/* ── Section 3 : Dates ── */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(100,181,246,0.8)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: 'rgba(100,181,246,0.6)' }} />
                   3. Planification
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', display: 'block', marginBottom: 4 }}>
                       Date de début
-                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Démarrage du chantier</span>
+                      <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)', marginLeft: 4 }}>· Démarrage du chantier</span>
                     </label>
-                    <input type="date" style={sInput} value={form.dateCommande} onChange={e => setForm({ ...form, dateCommande: e.target.value })} />
+                    <input type="date" className="mg-input mg-input-no-mb" value={form.dateCommande} onChange={e => setForm({ ...form, dateCommande: e.target.value })} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', display: 'block', marginBottom: 4 }}>
                       Date de livraison
-                      <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Optionnelle</span>
+                      <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)', marginLeft: 4 }}>· Optionnelle</span>
                     </label>
-                    <input type="date" style={sInput} value={form.dateLivraison || ''} onChange={e => setForm({ ...form, dateLivraison: e.target.value })} />
+                    <input type="date" className="mg-input mg-input-no-mb" value={form.dateLivraison || ''} onChange={e => setForm({ ...form, dateLivraison: e.target.value })} />
                   </div>
                 </div>
               </div>
 
               {/* ── Section 4 : Produits ── */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(100,181,246,0.8)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: 'rgba(100,181,246,0.6)' }} />
                   4. Produits / Matériaux sortis
                 </div>
 
                 {/* Bouton ouvrir sélecteur */}
                 <button onClick={ouvrirModalProduits}
-                  style={{ width: '100%', padding: '10px', borderRadius: 7, border: `1.5px dashed ${B[400]}`, background: B[50], color: B[600], fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  style={{ width: '100%', padding: '10px', borderRadius: 7, border: '1.5px dashed rgba(100,181,246,0.35)', background: 'rgba(100,181,246,0.06)', color: 'rgba(100,181,246,0.85)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   🗂️ Sélectionner des produits {(form.lignes || []).length > 0 && `(${(form.lignes||[]).length} choisi${(form.lignes||[]).length>1?'s':''})`}
                 </button>
 
                 {/* En-tête colonnes */}
                 {(form.lignes || []).length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 70px 90px 80px 28px', gap: 6, marginBottom: 4, padding: '0 2px' }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Désignation du produit</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Quantité</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Prix unitaire</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'right' }}>Total</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(148,190,230,0.5)', textTransform: 'uppercase' }}>Désignation du produit</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(148,190,230,0.5)', textTransform: 'uppercase', textAlign: 'center' }}>Quantité</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(148,190,230,0.5)', textTransform: 'uppercase', textAlign: 'center' }}>Prix unitaire</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(148,190,230,0.5)', textTransform: 'uppercase', textAlign: 'right' }}>Total</div>
                     <div />
                   </div>
                 )}
@@ -714,14 +714,14 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                 {(form.lignes || []).map((ligne, idx) => {
                   const stockInsuffisant = ligne.produitId && ligne.stockDispo !== undefined && ligne.quantite > ligne.stockDispo
                   return (
-                    <div key={idx} style={{ marginBottom: 6, background: stockInsuffisant ? '#fff7ed' : '#f8fafc', border: `1px solid ${stockInsuffisant ? '#fed7aa' : B[100]}`, borderRadius: 7, padding: '8px 10px' }}>
+                    <div key={idx} style={{ marginBottom: 6, background: stockInsuffisant ? 'rgba(249,115,22,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${stockInsuffisant ? 'rgba(249,115,22,0.35)' : 'rgba(100,181,246,0.1)'}`, borderRadius: 7, padding: '8px 10px' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '2fr 70px 90px 80px 28px', gap: 6, alignItems: 'center' }}>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: B[900] }}>{ligne.produitNom}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>{ligne.produitNom}</div>
                           {ligne.produitId && (
-                            <div style={{ fontSize: 10, color: B[600], marginTop: 2, display: 'flex', gap: 8 }}>
+                            <div style={{ fontSize: 10, color: 'rgba(100,181,246,0.7)', marginTop: 2, display: 'flex', gap: 8 }}>
                               {ligne.produitRef && <span>Réf : <strong>{ligne.produitRef}</strong></span>}
-                              <span style={{ color: stockInsuffisant ? '#f97316' : '#16a34a', fontWeight: 600 }}>
+                              <span style={{ color: stockInsuffisant ? '#f97316' : '#4ade80', fontWeight: 600 }}>
                                 Stock dispo : {ligne.stockDispo ?? '—'}
                               </span>
                             </div>
@@ -729,13 +729,15 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                         </div>
                         <input type="number" min="1" value={ligne.quantite}
                           onChange={e => modifierLigne(idx, 'quantite', Number(e.target.value))}
-                          style={{ ...sInput, marginBottom: 0, fontSize: 12, textAlign: 'center', background: '#fff', borderColor: stockInsuffisant ? '#f97316' : undefined }}
+                          className="mg-input mg-input-no-mb"
+                          style={{ fontSize: 12, textAlign: 'center', borderColor: stockInsuffisant ? '#f97316' : undefined }}
                           placeholder="Qté" />
                         <input type="number" min="0" value={ligne.prixUnit}
                           onChange={e => modifierLigne(idx, 'prixUnit', Number(e.target.value))}
-                          style={{ ...sInput, marginBottom: 0, fontSize: 12, background: '#fff' }}
+                          className="mg-input mg-input-no-mb"
+                          style={{ fontSize: 12 }}
                           placeholder="Prix FCFA" />
-                        <div style={{ fontSize: 12, color: B[700], fontWeight: 700, textAlign: 'right' }}>{fmt(ligne.total)}</div>
+                        <div style={{ fontSize: 12, color: 'rgba(100,181,246,0.9)', fontWeight: 700, textAlign: 'right' }}>{fmt(ligne.total)}</div>
                         <button onClick={() => supprimerLigne(idx)}
                           style={{ background: '#fee2e2', border: 'none', borderRadius: 5, width: 24, height: 24, cursor: 'pointer', color: '#dc2626', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
                       </div>
@@ -750,34 +752,34 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
 
                 {/* Total */}
                 {(form.lignes || []).length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${B[100]}` }}>
-                    <span style={{ fontSize: 12, color: '#64748b' }}>Montant total HT :</span>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: B[900] }}>{fmt(montantTotal(form.lignes))} FCFA</span>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(100,181,246,0.1)' }}>
+                    <span style={{ fontSize: 12, color: 'rgba(148,190,230,0.6)' }}>Montant total HT :</span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: '#f1f5f9' }}>{fmt(montantTotal(form.lignes))} FCFA</span>
                   </div>
                 )}
               </div>
 
               {/* ── Section 5 : Note ── */}
               <div style={{ marginBottom: 4 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', width: 16, height: 2, background: B[600] }} />
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(100,181,246,0.8)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 16, height: 2, background: 'rgba(100,181,246,0.6)' }} />
                   5. Remarques
                 </div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', display: 'block', marginBottom: 4 }}>
                   Note libre
-                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>· Instructions, observations, détails du chantier</span>
+                  <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)', marginLeft: 4 }}>· Instructions, observations, détails du chantier</span>
                 </label>
                 <textarea value={form.note || ''} onChange={e => setForm({ ...form, note: e.target.value })}
                   rows={2} placeholder="Ex : Chantier sur 3 jours, accès côté nord, attention aux finitions..."
-                  style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit' }} />
+                  className="mg-input" style={{ resize: 'vertical', fontFamily: 'inherit' }} />
               </div>
 
             </div>
 
             {/* Pied modal sticky */}
-            <div style={{ padding: '14px 24px', borderTop: `1px solid ${B[100]}`, display: 'flex', gap: 8, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff', borderRadius: '0 0 12px 12px' }}>
-              <button onClick={() => setModal(false)} style={sBtnSec}>Annuler</button>
-              <button onClick={sauvegarder} style={{ ...sBtn, opacity: !form.clientId ? 0.5 : 1 }}>
+            <div style={{ padding: '14px 24px', borderTop: '1px solid rgba(100,181,246,0.08)', display: 'flex', gap: 8, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#1e293b', borderRadius: '0 0 14px 14px' }}>
+              <button onClick={() => setModal(false)} className="mg-btn-ghost">Annuler</button>
+              <button onClick={sauvegarder} className="mg-btn-primary" style={{ opacity: !form.clientId ? 0.5 : 1 }}>
                 {cmdEditee ? '💾 Enregistrer' : '✅ Créer le chantier'}
               </button>
             </div>
@@ -807,30 +809,30 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
         })
         const nbSelec = Object.keys(selection).length
         return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-            <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 660, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 48px rgba(10,25,41,0.22)' }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+            <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 14, width: '100%', maxWidth: 660, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
 
               {/* En-tête */}
-              <div style={{ padding: '18px 22px 14px', borderBottom: `1px solid ${B[100]}` }}>
+              <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid rgba(100,181,246,0.08)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: B[900] }}>🗂️ Sélectionner des produits</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Cochez les produits à ajouter au chantier (toutes catégories)</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#f1f5f9' }}>🗂️ Sélectionner des produits</div>
+                    <div style={{ fontSize: 11, color: 'rgba(148,190,230,0.55)', marginTop: 2 }}>Cochez les produits à ajouter au chantier (toutes catégories)</div>
                   </div>
-                  <button onClick={() => setModalProduits(false)} style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 6, padding: '5px 10px', cursor: 'pointer', color: '#64748b', fontSize: 18, lineHeight: 1 }}>×</button>
+                  <button onClick={() => setModalProduits(false)} className="mg-close">×</button>
                 </div>
                 {/* Filtres */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <input value={rechercheP} onChange={e => setRechercheP(e.target.value)}
                     placeholder="🔍 Désignation, référence, RAL..."
-                    style={{ ...sInput, marginBottom: 0, fontSize: 12 }} />
-                  <select value={filtreCatP} onChange={e => setFiltreCatP(e.target.value)} style={{ ...sInput, marginBottom: 0, fontSize: 12 }}>
+                    className="mg-input mg-input-no-mb" style={{ fontSize: 12 }} />
+                  <select value={filtreCatP} onChange={e => setFiltreCatP(e.target.value)} className="mg-select mg-select-no-mb" style={{ fontSize: 12 }}>
                     <option value="">— Toutes les catégories —</option>
                     {cats.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
                 </div>
                 {nbSelec > 0 && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: B[600], fontWeight: 600 }}>
+                  <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(100,181,246,0.85)', fontWeight: 600 }}>
                     ✅ {nbSelec} produit{nbSelec > 1 ? 's' : ''} sélectionné{nbSelec > 1 ? 's' : ''}
                   </div>
                 )}
@@ -839,15 +841,15 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
               {/* Corps scrollable */}
               <div style={{ overflowY: 'auto', flex: 1, padding: '12px 22px' }}>
                 {Object.keys(grouped).length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '32px 0', fontSize: 13 }}>Aucun produit trouvé.</div>
+                  <div style={{ textAlign: 'center', color: 'rgba(148,190,230,0.5)', padding: '32px 0', fontSize: 13 }}>Aucun produit trouvé.</div>
                 )}
                 {Object.entries(grouped).map(([cat, prods]) => (
                   <div key={cat} style={{ marginBottom: 16 }}>
                     {/* Titre catégorie */}
-                    <div style={{ fontSize: 10, fontWeight: 800, color: B[600], textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ display: 'inline-block', width: 14, height: 2, background: B[400] }} />
+                    <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(100,181,246,0.75)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ display: 'inline-block', width: 14, height: 2, background: 'rgba(100,181,246,0.5)' }} />
                       {cat}
-                      <span style={{ fontWeight: 400, color: '#94a3b8' }}>({prods.length})</span>
+                      <span style={{ fontWeight: 400, color: 'rgba(148,190,230,0.4)' }}>({prods.length})</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {prods.map(p => {
@@ -859,30 +861,30 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                             style={{
                               display: 'flex', alignItems: 'center', gap: 10,
                               padding: '8px 10px', borderRadius: 7, cursor: 'pointer',
-                              border: `1.5px solid ${checked ? B[400] : B[100]}`,
-                              background: checked ? B[50] : '#fafafa',
+                              border: `1.5px solid ${checked ? 'rgba(100,181,246,0.45)' : 'rgba(100,181,246,0.1)'}`,
+                              background: checked ? 'rgba(100,181,246,0.1)' : 'rgba(255,255,255,0.03)',
                               transition: 'all 0.1s',
                             }}>
                             {/* Checkbox */}
                             <div style={{
                               width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                              border: `2px solid ${checked ? B[500] : B[300]}`,
-                              background: checked ? B[500] : '#fff',
+                              border: `2px solid ${checked ? 'rgba(100,181,246,0.8)' : 'rgba(100,181,246,0.3)'}`,
+                              background: checked ? 'rgba(100,181,246,0.8)' : 'transparent',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
                               {checked && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
                             </div>
                             {/* Infos produit */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: B[900], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {p.reference ? <span style={{ color: B[500], marginRight: 5 }}>[{p.reference}]</span> : null}
+                              <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.reference ? <span style={{ color: 'rgba(100,181,246,0.85)', marginRight: 5 }}>[{p.reference}]</span> : null}
                                 {p.designation || p.nom}
-                                {p.ral ? <span style={{ color: '#94a3b8', marginLeft: 4 }}>· {p.ral}</span> : null}
-                                {p.serie ? <span style={{ color: '#94a3b8', marginLeft: 4 }}>· {p.serie}</span> : null}
+                                {p.ral ? <span style={{ color: 'rgba(148,190,230,0.45)', marginLeft: 4 }}>· {p.ral}</span> : null}
+                                {p.serie ? <span style={{ color: 'rgba(148,190,230,0.45)', marginLeft: 4 }}>· {p.serie}</span> : null}
                               </div>
-                              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
+                              <div style={{ fontSize: 10, color: 'rgba(148,190,230,0.5)', marginTop: 1 }}>
                                 {p.prixUnitaire ? `${fmt(p.prixUnitaire)} FCFA/u` : ''}
-                                <span style={{ marginLeft: 8, color: stockOk ? '#16a34a' : '#ef4444', fontWeight: 600 }}>
+                                <span style={{ marginLeft: 8, color: stockOk ? '#4ade80' : '#f87171', fontWeight: 600 }}>
                                   Stock : {p.stock ?? 0}
                                 </span>
                               </div>
@@ -891,12 +893,12 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                             {checked && (
                               <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <button onClick={() => setSelection(s => ({ ...s, [p.id]: Math.max(1, (s[p.id] || 1) - 1) }))}
-                                  style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${B[300]}`, background: '#fff', cursor: 'pointer', color: B[700], fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                  style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid rgba(100,181,246,0.25)', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', color: '#f1f5f9', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                                 <input type="number" min="1" value={selection[p.id] || 1}
                                   onChange={e => setSelection(s => ({ ...s, [p.id]: Math.max(1, Number(e.target.value)) }))}
-                                  style={{ width: 44, textAlign: 'center', padding: '2px 4px', border: `1px solid ${B[200]}`, borderRadius: 4, fontSize: 12, outline: 'none' }} />
+                                  style={{ width: 44, textAlign: 'center', padding: '2px 4px', border: '1px solid rgba(100,181,246,0.2)', borderRadius: 4, fontSize: 12, outline: 'none', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9' }} />
                                 <button onClick={() => setSelection(s => ({ ...s, [p.id]: (s[p.id] || 1) + 1 }))}
-                                  style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${B[300]}`, background: '#fff', cursor: 'pointer', color: B[700], fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                  style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid rgba(100,181,246,0.25)', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', color: '#f1f5f9', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                               </div>
                             )}
                           </div>
@@ -908,13 +910,13 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
               </div>
 
               {/* Pied */}
-              <div style={{ padding: '14px 22px', borderTop: `1px solid ${B[100]}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>
+              <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(100,181,246,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'rgba(148,190,230,0.55)' }}>
                   {nbSelec > 0 ? `${nbSelec} produit${nbSelec > 1 ? 's' : ''} sélectionné${nbSelec > 1 ? 's' : ''}` : 'Aucune sélection'}
                 </span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setModalProduits(false)} style={sBtnSec}>Annuler</button>
-                  <button onClick={confirmerSelection} style={{ ...sBtn, opacity: nbSelec === 0 ? 0.5 : 1 }}>
+                  <button onClick={() => setModalProduits(false)} className="mg-btn-ghost">Annuler</button>
+                  <button onClick={confirmerSelection} className="mg-btn-primary" style={{ opacity: nbSelec === 0 ? 0.5 : 1 }}>
                     ✅ Confirmer la sélection
                   </button>
                 </div>
@@ -926,15 +928,15 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
 
       {/* Modal export comptable */}
       {modalExport && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '28px 30px', width: '100%', maxWidth: 400, boxShadow: '0 8px 40px rgba(10,25,41,0.18)' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: B[900], marginTop: 0, marginBottom: 6 }}>📊 Export rapport comptable</h3>
-            <p style={{ color: '#64748b', fontSize: 12, marginBottom: 20 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 14, padding: '28px 30px', width: '100%', maxWidth: 400, boxShadow: '0 24px 64px rgba(0,0,0,0.45)', color: '#e2e8f0' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#f1f5f9', marginTop: 0, marginBottom: 6 }}>📊 Export rapport comptable</h3>
+            <p style={{ color: 'rgba(148,190,230,0.6)', fontSize: 12, marginBottom: 20 }}>
               Génère un fichier Excel avec : résumé, CA par client, consommation produits, détail chantiers, lignes produits et encours.
             </p>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Période à exporter</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(148,190,230,0.7)', marginBottom: 8 }}>Période à exporter</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
                   { val: 'mois',     label: '📅 Mois en cours',    desc: 'Statistiques du mois actuel' },
@@ -944,14 +946,14 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
                   <div key={opt.val}
                     onClick={() => setPeriodeExport(opt.val)}
                     style={{
-                      border: `1.5px solid ${periodeExport === opt.val ? B[500] : B[200]}`,
-                      background: periodeExport === opt.val ? B[50] : '#fff',
+                      border: `1.5px solid ${periodeExport === opt.val ? 'rgba(100,181,246,0.5)' : 'rgba(100,181,246,0.12)'}`,
+                      background: periodeExport === opt.val ? 'rgba(100,181,246,0.1)' : 'rgba(255,255,255,0.03)',
                       borderRadius: 8, padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10
                     }}>
-                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${periodeExport === opt.val ? B[500] : B[300]}`, background: periodeExport === opt.val ? B[500] : '#fff', flexShrink: 0 }} />
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${periodeExport === opt.val ? 'rgba(100,181,246,0.8)' : 'rgba(100,181,246,0.3)'}`, background: periodeExport === opt.val ? 'rgba(100,181,246,0.8)' : 'transparent', flexShrink: 0 }} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: B[900] }}>{opt.label}</div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{opt.desc}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(148,190,230,0.5)' }}>{opt.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -962,21 +964,21 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
             {(() => {
               const s = calculerStats(periodeExport)
               return (
-                <div style={{ background: B[50], border: `1px solid ${B[200]}`, borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12 }}>
-                  <div style={{ fontWeight: 700, color: B[700], marginBottom: 6 }}>Aperçu</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, color: '#475569' }}>
-                    <span>Chantiers :</span><span style={{ fontWeight: 600, color: B[900] }}>{s.nbTotal}</span>
-                    <span>CA livré :</span><span style={{ fontWeight: 600, color: B[900] }}>{fmt(s.caLivre)} FCFA</span>
-                    <span>Encours :</span><span style={{ fontWeight: 600, color: B[600] }}>{fmt(s.caEnCours + s.caAttendu)} FCFA</span>
-                    <span>Clients :</span><span style={{ fontWeight: 600, color: B[900] }}>{s.statsClients.length}</span>
+                <div style={{ background: 'rgba(100,181,246,0.07)', border: '1px solid rgba(100,181,246,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, color: 'rgba(100,181,246,0.85)', marginBottom: 6 }}>Aperçu</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, color: 'rgba(148,190,230,0.6)' }}>
+                    <span>Chantiers :</span><span style={{ fontWeight: 600, color: '#f1f5f9' }}>{s.nbTotal}</span>
+                    <span>CA livré :</span><span style={{ fontWeight: 600, color: '#f1f5f9' }}>{fmt(s.caLivre)} FCFA</span>
+                    <span>Encours :</span><span style={{ fontWeight: 600, color: 'rgba(100,181,246,0.85)' }}>{fmt(s.caEnCours + s.caAttendu)} FCFA</span>
+                    <span>Clients :</span><span style={{ fontWeight: 600, color: '#f1f5f9' }}>{s.statsClients.length}</span>
                   </div>
                 </div>
               )
             })()}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setModalExport(false)} style={sBtnSec}>Annuler</button>
-              <button onClick={() => exporterExcel(periodeExport)} style={{ ...sBtn, background: B[700] }}>
+              <button onClick={() => setModalExport(false)} className="mg-btn-ghost">Annuler</button>
+              <button onClick={() => exporterExcel(periodeExport)} className="mg-btn-primary">
                 ⬇ Télécharger Excel
               </button>
             </div>
@@ -985,13 +987,13 @@ function Commandes({ commandes, produits: produitsStore = {}, mouvements, client
       )}
 
       {confirmation && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,25,41,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: '24px 26px', width: '100%', maxWidth: 360 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: B[900], marginTop: 0 }}>Supprimer ce chantier ?</h3>
-            <p style={{ color: '#64748b', fontSize: 13 }}><strong>{confirmation.reference}</strong> sera supprimé définitivement.</p>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(100,181,246,0.12)', borderRadius: 14, padding: '24px 26px', width: '100%', maxWidth: 360, boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', marginTop: 0 }}>Supprimer ce chantier ?</h3>
+            <p style={{ color: 'rgba(148,190,230,0.6)', fontSize: 13 }}><strong style={{ color: '#f1f5f9' }}>{confirmation.reference}</strong> sera supprimé définitivement.</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmation(null)} style={sBtnSec}>Annuler</button>
-              <button onClick={supprimer} style={sBtn}>Confirmer</button>
+              <button onClick={() => setConfirmation(null)} className="mg-btn-ghost">Annuler</button>
+              <button onClick={supprimer} className="mg-btn-danger">Confirmer</button>
             </div>
           </div>
         </div>
