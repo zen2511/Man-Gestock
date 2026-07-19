@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getUsers, ajouterUser, modifierUser, supprimerUser, demanderReinitialisationMdp, DROITS } from '../utils/auth'
 import { exporterRapportComptable } from '../utils/exportComptable'
+import GuideUtilisation from '../components/GuideUtilisation'
 
 const CLE_TEINTES = 'mansa_teintes'
 const CLE_TAILLES = 'mansa_tailles'
@@ -195,6 +196,7 @@ if (window.confirm('Retirer cet utilisateur ? (le compte de connexion devra êtr
 }
 
 const onglets = [
+{ id: 'guide', label: "Guide d'utilisation", visible: true },
 { id: 'magasin', label: 'Entreprise', visible: true },
 { id: 'teintes', label: 'Teintes', visible: true },
 { id: 'tailles', label: 'Tailles', visible: true },
@@ -254,6 +256,11 @@ onMouseLeave={e => { if (onglet !== o.id) e.currentTarget.style.background = 'tr
 
 {/* Contenu scrollable à droite */}
 <div style={{ flex: 1, padding: '20px 24px', overflowY: 'auto' }}>
+
+{/* GUIDE D'UTILISATION */}
+{onglet === 'guide' && (
+  <GuideUtilisation role={userActif?.role} />
+)}
 
 {/* ENTREPRISE */}
 {onglet === 'magasin' && (
