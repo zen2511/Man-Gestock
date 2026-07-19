@@ -210,18 +210,18 @@ const SIDEBAR_STYLES = `
     z-index: 2;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    min-height: 100%;
   }
 
   /* Item nav */
   .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    border-radius: 9px;
-    margin-bottom: 3px;
+    gap: 9px;
+    border-radius: 8px;
+    margin-bottom: 2px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     letter-spacing: 0.01em;
     white-space: nowrap;
@@ -316,7 +316,7 @@ const SIDEBAR_STYLES = `
     letter-spacing: 1px;
     text-transform: uppercase;
     color: rgba(100, 181, 246, 0.22);
-    padding: 2px 12px 8px;
+    padding: 2px 12px 5px;
   }
 
   /* Scrollbar custom */
@@ -358,7 +358,7 @@ const SIDEBAR_STYLES = `
 
   /* Logo zone */
   .logo-zone {
-    height: 56px;
+    height: 48px;
     border-bottom: 1px solid rgba(100, 181, 246, 0.07);
     display: flex;
     align-items: center;
@@ -388,7 +388,7 @@ function NavItem({ item, actif, collapsed, onClick, badge }) {
       title={collapsed ? item.label : ''}
       className={`nav-item${actif ? ' active' : ''}`}
       style={{
-        padding: collapsed ? '10px 0' : '9px 12px',
+        padding: collapsed ? '8px 0' : '7px 12px',
         justifyContent: collapsed ? 'center' : 'flex-start',
         position: 'relative',
       }}
@@ -420,7 +420,7 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed, b
           minHeight: '100vh',
           flexShrink: 0,
           transition: 'width 0.22s cubic-bezier(.4,0,.2,1)',
-          overflow: 'hidden',
+          overflowX: 'hidden',
         }}
       >
         {/* Fond verre */}
@@ -477,18 +477,14 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed, b
           <nav
             className="sidebar-nav"
             style={{
-              padding: collapsed ? '10px 6px' : '10px 8px',
-              flex: 1,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(100,181,246,0.15) transparent',
+              padding: collapsed ? '8px 6px' : '8px 8px',
+              flexShrink: 0,
             }}
           >
             {GROUPES_MENU.map((groupe, i) => (
               <div key={groupe.section}>
                 {!collapsed && (
-                  <div className="nav-section-label" style={i > 0 ? { marginTop: 10 } : undefined}>
+                  <div className="nav-section-label" style={i > 0 ? { marginTop: 7 } : undefined}>
                     {groupe.section}
                   </div>
                 )}
@@ -509,7 +505,7 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed, b
           {/* ── Paramètres + version ── */}
           <div
             style={{
-              padding: collapsed ? '8px 6px 16px' : '8px 8px 16px',
+              padding: collapsed ? '6px 6px 10px' : '6px 8px 10px',
               borderTop: '1px solid rgba(100, 181, 246, 0.07)',
               flexShrink: 0,
             }}
@@ -520,7 +516,7 @@ function Sidebar({ pageActive, setPageActive, droits, collapsed, setCollapsed, b
               collapsed={collapsed}
               onClick={() => setPageActive('parametres')}
             />
-            {!collapsed && <div className="version-badge">v2.0 · Man-Gestock</div>}
+            {!collapsed && <div className="version-badge" style={{ marginTop: 6 }}>v2.0 · Man-Gestock</div>}
           </div>
 
         </div>

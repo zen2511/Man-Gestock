@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MODAL_CSS } from '../utils/modalStyles'
 import { exporterFichePrevisions } from '../utils/exportPrevisions'
+import { calculerPrevisions, statutPrevision } from '../utils/previsions'
 
 const norm = (txt) =>
   String(txt || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -13,36 +14,6 @@ const URGENCES = [
   { valeur: 'faible',    label: 'Stock faible' },
   { valeur: 'aRenseigner', label: 'Qté. base à renseigner' },
 ]
-
-// Calcule la liste des prévisions à partir des produits.
-// Un produit apparaît si son stock est faible (stock ≤ stockMin) et que la
-// prévision (qteBase − stock) serait utile : soit qteBase > stock, soit
-// qteBase n'est pas encore renseignée (on l'affiche quand même avec un
-// avertissement à compléter, plutôt que de le faire disparaître).
-function calculerPrevisions(listeProduits) {
-  return listeProduits
-    .filter(p => (Number(p.stock) || 0) <= (Number(p.stockMin) || 5))
-    .map(p => {
-      const stock = Number(p.stock) || 0
-      const manqueBase = p.qteBase === '' || p.qteBase === undefined || p.qteBase === null || Number(p.qteBase) === 0
-      const qteBase = manqueBase ? 0 : Number(p.qteBase)
-      const prevision = qteBase - stock
-      return { ...p, stock, qteBase, manqueBase, prevision }
-    })
-    .filter(p => p.manqueBase || p.prevision > 0)
-    .sort((a, b) => {
-      const ruptureA = a.stock <= 0 ? 0 : 1
-      const ruptureB = b.stock <= 0 ? 0 : 1
-      if (ruptureA !== ruptureB) return ruptureA - ruptureB
-      return (b.prevision || 0) - (a.prevision || 0)
-    })
-}
-
-const statutPrevision = (p) => {
-  if (p.manqueBase) return { label: 'Qté base à renseigner', couleur: '#b45309', cle: 'aRenseigner' }
-  if (p.stock <= 0)  return { label: 'Rupture',              couleur: '#dc2626', cle: 'rupture' }
-  return { label: 'Stock faible', couleur: '#d97706', cle: 'faible' }
-}
 
 function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg = [], onCreerCommande, droits }) {
   const listeProduits = Array.isArray(produitsArg) ? produitsArg : (produitsArg.donnees || [])
@@ -398,15 +369,17 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
       {/* ── Sélection des produits + quantités avant création de la commande ── */}
       {selection && (
         <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setSelection(null)}>
-          <div className="mg-card" style={{ maxWidth: 780, width: '95%' }}>
-            <div className="mg-header">
+          <div className="mg-card" style={{ maxWidth: 780, width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="mg-header" style={{ flexShrink: 0 }}>
               <div>
                 <div className="mg-title">Créer la commande — {selection.fournisseurNom}</div>
                 <div className="mg-subtitle">Ajustez les quantités ou retirez un produit avant de créer la commande</div>
               </div>
               <button className="mg-close" onClick={() => setSelection(null)}>×</button>
             </div>
-            <div className="mg-card-body" style={{ maxHeight: '68vh', overflow: 'auto' }}>
+
+            {/* Corps scrollable : seul le tableau défile, le footer reste toujours visible */}
+            <div className="mg-card-body" style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
               {selection.lignes.length === 0 ? (
                 <p style={{ textAlign: 'center', color: '#94a3b8', padding: 24, fontSize: 13 }}>
                   Tous les produits ont été retirés. Fermez ce panneau ou revenez à la liste.
@@ -459,8 +432,11 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
                   </table>
                 </div>
               )}
+            </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+            {/* Footer toujours visible, même si la liste de produits est longue */}
+            <div className="mg-card-body" style={{ flexShrink: 0, paddingTop: 12, paddingBottom: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
                 <div style={{ fontSize: 13, color: '#64748b' }}>
                   {selection.lignes.length} produit{selection.lignes.length > 1 ? 's' : ''} · Total : <strong style={{ color: '#0f2847' }}>{fmt(totalSelection(selection.lignes))} FCFA</strong>
                 </div>

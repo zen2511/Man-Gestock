@@ -376,14 +376,14 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
       })()}
       {modal && (
         <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
-          <div className="mg-card" style={{ maxWidth: 480 }}>
-            <div className="mg-header">
+          <div className="mg-card" style={{ maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="mg-header" style={{ flexShrink: 0 }}>
               <div>
                 <div className="mg-title">{commandeEditee ? 'Modifier la commande' : 'Nouvelle commande fournisseur'}</div>
               </div>
               <button className="mg-close" onClick={() => setModal(false)}>×</button>
             </div>
-            <div className="mg-card-body">
+            <div className="mg-card-body" style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
               <div className="mg-field-grid-2">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   <label className="mg-label">Numéro *</label>
@@ -479,8 +479,11 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="mg-actions mg-actions-border" style={{ marginTop: 18 }}>
+            {/* Footer d'actions toujours visible, même si le formulaire/la liste de produits est longue */}
+            <div className="mg-card-body" style={{ flexShrink: 0, paddingTop: 12, paddingBottom: 18 }}>
+              <div className="mg-actions mg-actions-border" style={{ marginTop: 0, paddingTop: 14 }}>
                 <button className="mg-btn-ghost" onClick={() => setModal(false)}>Annuler</button>
                 <button className="mg-btn-primary" onClick={sauvegarder}>
                   {commandeEditee ? 'Enregistrer les modifications' : 'Créer'}
