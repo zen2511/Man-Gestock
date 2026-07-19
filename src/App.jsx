@@ -41,6 +41,7 @@ function App() {
   const [modalLoginVisible, setModalLoginVisible] = useState(false)
   const [collapsed, setCollapsed]     = useState(false)
   const [prefillFournisseurId, setPrefillFournisseurId] = useState(null)
+  const [prefillLignes, setPrefillLignes] = useState([])
 
   const produits     = useStore(CLES.produits,     PRODUITS_DEFAUT)
   const clients      = useStore(CLES.clients,      CLIENTS_DEFAUT)
@@ -60,8 +61,10 @@ function App() {
   const handleLogout   = () => { logout(); setUserActif(VISITEUR_ANONYME); setPageActive('dashboard') }
 
   // Depuis la page Prévisions : basculer vers Cmd. fournisseur et ouvrir
-  // directement le formulaire de nouvelle commande pour ce fournisseur.
-  const creerCommandeDepuisPrevisions = (fournisseurId) => {
+  // directement le formulaire de nouvelle commande, avec le fournisseur ET
+  // les produits/quantités déjà choisis dans le panneau de sélection.
+  const creerCommandeDepuisPrevisions = (fournisseurId, lignes = []) => {
+    setPrefillLignes(lignes)
     setPrefillFournisseurId(fournisseurId)
     setPageActive('commandesFournisseur')
   }
@@ -123,7 +126,8 @@ function App() {
           fournisseurs={fournisseurs.donnees}
           droits={droits}
           prefillFournisseurId={prefillFournisseurId}
-          onPrefillConsumed={() => setPrefillFournisseurId(null)}
+          prefillLignes={prefillLignes}
+          onPrefillConsumed={() => { setPrefillFournisseurId(null); setPrefillLignes([]) }}
         />
       case 'previsions':
         return <Previsions

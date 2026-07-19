@@ -5,7 +5,7 @@ import { MODAL_CSS } from '../utils/modalStyles'
 const FORM_VIDE = {
   numero: '', numeroFacture: '', fournisseurId: '',
   dateCommande: new Date().toISOString().slice(0, 10),
-  statut: 'en_attente', note: '',
+  statut: 'en_attente', note: '', lignes: [],
 }
 
 const STATUTS = [
@@ -20,7 +20,7 @@ const norm = (txt) =>
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n || 0)
 
-function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursArg = [], droits, prefillFournisseurId, onPrefillConsumed }) {
+function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursArg = [], droits, prefillFournisseurId, prefillLignes, onPrefillConsumed }) {
   const { donnees, ajouter, modifier, effacer } = commandes
   const fournisseurs = Array.isArray(fournisseursArg) ? fournisseursArg : (fournisseursArg.donnees || [])
   const listeEntrees  = entrees?.donnees || entrees || []
@@ -48,11 +48,12 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
   const produitsDe  = (cmd) => listeEntrees.filter(e => e.commandeFournisseurId === cmd.id)
 
   // Pré-remplissage depuis la page Prévisions : ouvre directement le
-  // formulaire de nouvelle commande avec le fournisseur choisi.
+  // formulaire de nouvelle commande avec le fournisseur ET les produits
+  // (avec quantités) déjà choisis sur l'écran de sélection.
   useEffect(() => {
     if (prefillFournisseurId) {
       setCommandeEditee(null)
-      setForm({ ...FORM_VIDE, fournisseurId: prefillFournisseurId })
+      setForm({ ...FORM_VIDE, fournisseurId: prefillFournisseurId, lignes: prefillLignes || [] })
       setModal(true)
       onPrefillConsumed?.()
     }
@@ -82,9 +83,22 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
       dateCommande:  c.dateCommande || new Date().toISOString().slice(0, 10),
       statut:        c.statut || 'en_attente',
       note:          c.note || '',
+      lignes:        c.lignes || [],
     })
     setModal(true)
   }
+
+  // ── Édition des lignes de produits commandés dans le formulaire ──
+  const majQteLigne = (produitId, qte) => {
+    setForm(f => ({
+      ...f,
+      lignes: f.lignes.map(l => l.produitId === produitId ? { ...l, qteCommandee: qte } : l),
+    }))
+  }
+  const retirerLigne = (produitId) => {
+    setForm(f => ({ ...f, lignes: f.lignes.filter(l => l.produitId !== produitId) }))
+  }
+  const totalLignes = (lignes) => lignes.reduce((s, l) => s + (Number(l.qteCommandee) || 0) * (Number(l.prixUnitaire) || 0), 0)
 
   const sauvegarder = () => {
     if (!form.numero.trim()) { alert('Indiquez un numéro de commande.'); return }
@@ -102,6 +116,7 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
         dateCommande:  form.dateCommande,
         statut:        form.statut,
         note:          form.note,
+        lignes:        form.lignes,
       })
     } else {
       ajouter({
@@ -113,6 +128,7 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
         dateCommande:  form.dateCommande,
         statut:        form.statut,
         note:          form.note,
+        lignes:        form.lignes,
         dateCreation:  new Date().toISOString(),
       })
     }
@@ -267,7 +283,49 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
               </div>
             </div>
 
-            {/* Produits ajoutés pour cette commande — même mise en forme que Produits */}
+            {/* Produits commandés — figés au moment de la création (depuis Prévisions ou saisis manuellement) */}
+            {detail.lignes && detail.lignes.length > 0 && (
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2847', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                  Produits commandés ({detail.lignes.length})
+                </div>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        {['Réf.', 'Désignation', 'Catégorie', 'Qté commandée', 'PU', 'Sous-total'].map(col => (
+                          <th key={col} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.lignes.map((l, i) => (
+                        <tr key={l.produitId || i} style={{ borderTop: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '9px 12px', fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{l.reference || '—'}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 600, color: '#0f2847' }}>{l.designation || '—'}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, color: '#475569' }}>{l.categorie || '—'}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 700, color: '#254e88' }}>{fmt(l.qteCommandee)}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, color: '#475569' }}>{fmt(l.prixUnitaire)}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 700, color: '#0f2847' }}>{fmt((Number(l.qteCommandee) || 0) * (Number(l.prixUnitaire) || 0))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: '#0f2847', marginTop: 6 }}>
+                  Total commandé : {fmt(detail.lignes.reduce((s, l) => s + (Number(l.qteCommandee) || 0) * (Number(l.prixUnitaire) || 0), 0))} FCFA
+                </div>
+              </div>
+            )}
+
+            {/* Produits effectivement reçus — via le module Entrées */}
+            <div style={{ padding: '16px 20px 0' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2847', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Produits reçus (via Entrées)
+              </div>
+            </div>
             <div style={{ overflow: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 920 }}>
                 <thead>
@@ -286,7 +344,7 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
                 <tbody>
                   {lignes.length === 0 ? (
                     <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                      Aucun produit ajouté pour l'instant sur cette commande
+                      Aucune entrée reçue pour l'instant sur cette commande
                     </td></tr>
                   ) : (
                     lignes.map((l, i) => {
@@ -374,6 +432,53 @@ function CommandesFournisseur({ commandes, entrees, fournisseurs: fournisseursAr
                     placeholder="Optionnel" />
                 </div>
               </div>
+
+              {/* Produits commandés — pré-remplis depuis Prévisions, modifiables ici */}
+              {form.lignes.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <label className="mg-label">Produits commandés ({form.lignes.length})</label>
+                  <div style={{ border: '1.5px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc' }}>
+                          {['Désignation', 'Qté', 'PU', 'Sous-total', ''].map(col => (
+                            <th key={col} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0' }}>
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.lignes.map(l => (
+                          <tr key={l.produitId} style={{ borderTop: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '7px 10px', fontSize: 12.5, fontWeight: 600, color: '#0f2847' }}>{l.designation}</td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <input
+                                type="number" min="0" value={l.qteCommandee}
+                                onChange={e => majQteLigne(l.produitId, e.target.value)}
+                                style={{ width: 64, padding: '4px 6px', borderRadius: 5, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                              />
+                            </td>
+                            <td style={{ padding: '7px 10px', fontSize: 12.5, color: '#475569' }}>{fmt(l.prixUnitaire)}</td>
+                            <td style={{ padding: '7px 10px', fontSize: 12.5, fontWeight: 700, color: '#254e88' }}>
+                              {fmt((Number(l.qteCommandee) || 0) * (Number(l.prixUnitaire) || 0))}
+                            </td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <button onClick={() => retirerLigne(l.produitId)} title="Retirer ce produit"
+                                style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 15, fontWeight: 700, padding: 0 }}>
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: '#0f2847', marginTop: 6 }}>
+                    Total commande : {fmt(totalLignes(form.lignes))} FCFA
+                  </div>
+                </div>
+              )}
 
               <div className="mg-actions mg-actions-border" style={{ marginTop: 18 }}>
                 <button className="mg-btn-ghost" onClick={() => setModal(false)}>Annuler</button>

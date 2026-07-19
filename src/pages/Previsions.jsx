@@ -52,6 +52,7 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
   const [urgence,           setUrgence]          = useState('tous')
   const [filtreFournisseur, setFiltreFournisseur] = useState('')
   const [exportEnCours,     setExportEnCours]     = useState(false)
+  const [selection,         setSelection]         = useState(null) // { fournisseurId, fournisseurNom, lignes: [...] }
 
   const sInput = {
     width: '100%', padding: '9px 13px', borderRadius: 7,
@@ -93,9 +94,57 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
   const nbFaibleTotal  = previsions.filter(p => p.stock > 0 && !p.manqueBase).length
   const nbARenseigner  = previsions.filter(p => p.manqueBase).length
 
-  const creerCommandePour = (fournisseurId) => {
+  // ── Sélection des produits avant création de la commande ──────
+  // Ouvre un panneau listant les produits en prévision pour ce
+  // fournisseur, avec quantité éditable et possibilité de retirer
+  // un produit avant validation.
+  const ouvrirSelection = (fournisseurId) => {
     if (!fournisseurId || fournisseurId === '_sans') return
-    onCreerCommande?.(fournisseurId)
+    const lignesFourn = previsions.filter(p => p.fournisseurId === fournisseurId)
+    const nomFournisseur = lignesFourn[0]?.fournisseurNom || 'Fournisseur'
+    setSelection({
+      fournisseurId,
+      fournisseurNom: nomFournisseur,
+      lignes: lignesFourn.map(p => ({
+        produitId: p.id,
+        reference: p.reference,
+        designation: p.designation,
+        categorie: p.categorie,
+        stock: p.stock,
+        prixUnitaire: Number(p.prixUnitaire) || 0,
+        qte: p.manqueBase ? 1 : Math.max(1, Math.round(p.prevision)),
+      })),
+    })
+  }
+
+  const majQteSelection = (produitId, val) => {
+    setSelection(sel => ({
+      ...sel,
+      lignes: sel.lignes.map(l => l.produitId === produitId ? { ...l, qte: val } : l),
+    }))
+  }
+
+  const retirerDeSelection = (produitId) => {
+    setSelection(sel => ({ ...sel, lignes: sel.lignes.filter(l => l.produitId !== produitId) }))
+  }
+
+  const totalSelection = (lignes) => lignes.reduce((s, l) => s + (Number(l.qte) || 0) * l.prixUnitaire, 0)
+
+  const validerSelection = () => {
+    if (!selection || selection.lignes.length === 0) {
+      alert('Ajoutez au moins un produit avant de créer la commande.')
+      return
+    }
+    const lignesCommande = selection.lignes.map(l => ({
+      produitId: l.produitId,
+      reference: l.reference,
+      designation: l.designation,
+      categorie: l.categorie,
+      qteCommandee: Number(l.qte) || 0,
+      prixUnitaire: l.prixUnitaire,
+    }))
+    onCreerCommande?.(selection.fournisseurId, lignesCommande)
+    setSelection(null)
   }
 
   // ── Export Excel ──────────────────────────────────────────
@@ -199,7 +248,7 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
           </div>
 
           {/* Cartes par fournisseur — filtrage + création rapide */}
-          {parFournisseur.length > 1 && (
+          {parFournisseur.length >= 1 && (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
               {parFournisseur.map(f => {
                 const actif = filtreFournisseur === f.id
@@ -226,7 +275,7 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
                     </div>
                     {droits?.modifierProduits !== false && f.id !== '_sans' && (
                       <button
-                        onClick={e => { e.stopPropagation(); creerCommandePour(f.id) }}
+                        onClick={e => { e.stopPropagation(); ouvrirSelection(f.id) }}
                         style={{
                           marginTop: 8, width: '100%', padding: '6px 10px', borderRadius: 6, border: 'none',
                           background: actif ? '#fff' : '#eef3fa', color: '#254e88', fontWeight: 700, fontSize: 11.5,
@@ -344,6 +393,92 @@ function Previsions({ produits: produitsArg = [], fournisseurs: fournisseursArg 
             </table>
           </div>
         </>
+      )}
+
+      {/* ── Sélection des produits + quantités avant création de la commande ── */}
+      {selection && (
+        <div className="mg-overlay" onClick={e => e.target === e.currentTarget && setSelection(null)}>
+          <div className="mg-card" style={{ maxWidth: 780, width: '95%' }}>
+            <div className="mg-header">
+              <div>
+                <div className="mg-title">Créer la commande — {selection.fournisseurNom}</div>
+                <div className="mg-subtitle">Ajustez les quantités ou retirez un produit avant de créer la commande</div>
+              </div>
+              <button className="mg-close" onClick={() => setSelection(null)}>×</button>
+            </div>
+            <div className="mg-card-body" style={{ maxHeight: '68vh', overflow: 'auto' }}>
+              {selection.lignes.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#94a3b8', padding: 24, fontSize: 13 }}>
+                  Tous les produits ont été retirés. Fermez ce panneau ou revenez à la liste.
+                </p>
+              ) : (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        {['Réf.', 'Désignation', 'Stock', 'Qté à commander', 'PU (FCFA)', 'Sous-total', ''].map(col => (
+                          <th key={col} style={{
+                            padding: '10px 12px', textAlign: 'left', fontSize: 10.5, fontWeight: 700,
+                            color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em',
+                            borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap',
+                          }}>
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selection.lignes.map(l => (
+                        <tr key={l.produitId} style={{ borderTop: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '9px 12px', fontSize: 11, color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{l.reference || '—'}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 600, color: '#0f2847', minWidth: 160 }}>{l.designation || '—'}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 700, color: l.stock <= 0 ? '#dc2626' : '#475569' }}>{fmt(l.stock)}</td>
+                          <td style={{ padding: '9px 12px' }}>
+                            <input
+                              type="number" min="0" value={l.qte}
+                              onChange={e => majQteSelection(l.produitId, e.target.value)}
+                              style={{ width: 76, padding: '6px 8px', borderRadius: 6, border: '1.5px solid #cbd5e1', fontSize: 13 }}
+                            />
+                          </td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, color: '#475569' }}>{fmt(l.prixUnitaire)}</td>
+                          <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 700, color: '#254e88' }}>
+                            {fmt((Number(l.qte) || 0) * l.prixUnitaire)}
+                          </td>
+                          <td style={{ padding: '9px 12px' }}>
+                            <button
+                              onClick={() => retirerDeSelection(l.produitId)}
+                              title="Retirer ce produit de la commande"
+                              style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 16, fontWeight: 700, padding: 0 }}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                <div style={{ fontSize: 13, color: '#64748b' }}>
+                  {selection.lignes.length} produit{selection.lignes.length > 1 ? 's' : ''} · Total : <strong style={{ color: '#0f2847' }}>{fmt(totalSelection(selection.lignes))} FCFA</strong>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button className="mg-btn-ghost" onClick={() => setSelection(null)}>Annuler</button>
+                  <button
+                    className="mg-btn-primary"
+                    onClick={validerSelection}
+                    disabled={selection.lignes.length === 0}
+                    style={selection.lignes.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                  >
+                    Créer la commande ({selection.lignes.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
